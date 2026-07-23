@@ -1,3 +1,7 @@
+from hud_segmented_loader import install_segmented_hud
+
+install_segmented_hud()
+
 PATTERN_SORT_OPTIONS = [
     "依機械分數高到低排序(預設)",
     "依幣種英文字母順序排序",
