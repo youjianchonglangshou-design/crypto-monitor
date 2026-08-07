@@ -1,7 +1,7 @@
 {
   "batch": {
-    "generated_at_taiwan": "2026-08-07 10:47:33",
-    "snapshot_hash": "5ac0dea3815ee90ba6c49b4438261b959df83478adb8fe2004c2624a970961c9",
+    "generated_at_taiwan": "2026-08-07 10:52:40",
+    "snapshot_hash": "ad158926f645be6192149defe4b3e0a990eac20142af614fb089cca844416b31",
     "schema_version": "crypto-monitor-ai-v1",
     "count": 90,
     "selection": "考試幣",
@@ -11,11 +11,11 @@
 
   "breadth": {
     "ladder": {
-      "red": 55,
-      "yellow": 20,
+      "red": 54,
+      "yellow": 21,
       "green": 15,
       "other": 0,
-      "red_ratio_pct": 61.11,
+      "red_ratio_pct": 60.0,
       "red_majority": true
     },
     "daily_ha": {
@@ -24,15 +24,15 @@
       "flat_or_unknown": 0
     },
     "four_h_pairs": {
-      "red_red": 35,
-      "red_green": 23,
-      "green_green": 27,
-      "green_red": 5,
+      "red_red": 37,
+      "red_green": 21,
+      "green_green": 28,
+      "green_red": 4,
       "other": 0
     },
     "midline": {
-      "above": 21,
-      "below": 69,
+      "above": 22,
+      "below": 68,
       "at": 0,
       "near_1pct": 17,
       "near_3pct": 49
@@ -44,8 +44,9 @@
 
   "groups": {
     "breakout_pullback_restart": [
-      "ETH",
+      "BNB",
       "1INCH",
+      "ETH",
       "UNI",
       "CRV",
       "PAXG",
@@ -60,7 +61,6 @@
     "yellow_stage_1": [
       "TIA",
       "MANA",
-      "WIF",
       "BONK"
     ],
     "yellow_stage_2": [
@@ -76,28 +76,29 @@
       "BOME"
     ],
     "four_h_red_green": [
+      "BNB",
       "UNI",
       "APT",
       "BCH",
       "POL",
       "SNX",
-      "DYDX",
       "EGLD",
       "LINK",
       "IMX",
       "CHZ",
-      "WIF",
       "YFI",
       "CAKE",
-      "BNB",
       "DOGE",
       "S",
       "OP",
       "SAND",
       "LPT",
-      "KAS"
+      "KAS",
+      "XLM",
+      "PYTH"
     ],
     "four_h_green_green": [
+      "1INCH",
       "CRV",
       "PAXG",
       "ROSE",
@@ -108,47 +109,46 @@
       "GMX",
       "FLOKI",
       "ZEC",
-      "ENJ",
       "AXS",
+      "ENJ",
       "W",
       "GALA",
       "MANA",
       "MEME",
       "BONK",
       "KAVA",
-      "SUSHI",
-      "ALGO"
+      "SUSHI"
     ],
     "near_midline": [
-      "YFI",
-      "BTC",
       "BCH",
-      "TRX",
-      "APT",
+      "BTC",
+      "YFI",
       "POL",
+      "APT",
+      "TRX",
       "ATOM",
       "ETH",
-      "SHIB",
-      "MANA",
-      "TIA",
-      "LTC",
       "RUNE",
       "CAKE",
-      "PEPE",
+      "TIA",
+      "SHIB",
+      "LTC",
       "TAO",
+      "PEPE",
+      "MANA",
       "SNX",
-      "DYDX",
       "AVAX",
-      "OKB"
+      "TRUMP",
+      "RSR"
     ],
     "ladder_green": [
+      "BNB",
       "UNI",
       "PAXG",
       "APT",
       "BCH",
       "POL",
       "SNX",
-      "DYDX",
       "EGLD",
       "ZEC",
       "LINK",
@@ -159,8 +159,8 @@
       "BOME"
     ],
     "ladder_yellow": [
-      "ETH",
       "1INCH",
+      "ETH",
       "CRV",
       "STRK",
       "ROSE",
@@ -173,26 +173,25 @@
       "AXS",
       "W",
       "ATOM",
+      "DYDX",
       "HYPE",
       "GALA",
       "ADA",
       "MEME",
-      "SUSHI",
-      "ALGO"
+      "SUSHI"
     ],
     "po3_strong": [
       "STRK"
     ],
     "po3_candidate": [
-      "BTC",
       "BCH",
+      "BTC",
       "POL",
       "TIA",
       "LTC",
       "SNX",
-      "DYDX",
-      "EGLD",
       "TRUMP",
+      "EGLD",
       "GMX",
       "LINK",
       "ENJ",
@@ -200,6 +199,7 @@
       "IMX",
       "CHZ",
       "ATOM",
+      "DYDX",
       "HYPE",
       "GALA",
       "MANA",
@@ -214,29 +214,29 @@
         "DeFi",
         "DEX聚合"
       ],
-      "price": 0.0835,
-      "bb_midline_1d": 0.082165,
-      "bb_pct": 1.624779,
+      "price": 0.0837,
+      "bb_midline_1d": 0.082175,
+      "bb_pct": 1.855796,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
-      "h4_curr": "red",
+      "h4_curr": "green",
       "h4_tail": [
         "green",
         "green",
         "green",
-        "red"
+        "green"
       ],
       "threshold": {
         "state": "yellow",
         "price": 0.08172609,
-        "gap_pct": 2.170555
+        "gap_pct": 2.415275
       },
       "ladder": {
         "state": "yellow",
-        "label": "L2+ 轉弱",
+        "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": 1.807339,
+        "latest_pct": 1.855796,
         "yellow_run_length": 4,
         "mature": true
       },
@@ -248,9 +248,9 @@
         "po3_candidate": false,
         "po3_early": false,
         "yellow_over_previous_purple_count": 1,
-        "four_h_trigger": "green_red"
+        "four_h_trigger": "green_green"
       },
-      "score": 90,
+      "score": 94,
       "ladder_tail": [
         {
           "date": "07/31",
@@ -289,7 +289,7 @@
         },
         {
           "date": "08/07",
-          "pct": 1.807339,
+          "pct": 1.855796,
           "color": "yellow"
         }
       ]
@@ -300,9 +300,9 @@
         "DeFi",
         "借貸"
       ],
-      "price": 90.74,
-      "bb_midline_1d": 93.9215,
-      "bb_pct": -3.387403,
+      "price": 90.89,
+      "bb_midline_1d": 93.929,
+      "bb_pct": -3.235422,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "green",
@@ -316,13 +316,13 @@
       "threshold": {
         "state": "purple",
         "price": 91.09854659,
-        "gap_pct": -0.393581
+        "gap_pct": -0.228924
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -3.879836,
+        "latest_pct": -3.847587,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -375,7 +375,7 @@
         },
         {
           "date": "08/07",
-          "pct": -3.879836,
+          "pct": -3.847587,
           "color": "purple"
         }
       ]
@@ -386,9 +386,9 @@
         "L1/L2",
         "核心大幣"
       ],
-      "price": 0.1995,
-      "bb_midline_1d": 0.17538,
-      "bb_pct": 13.752993,
+      "price": 0.2001,
+      "bb_midline_1d": 0.17541,
+      "bb_pct": 14.075594,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -402,13 +402,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.18619473,
-        "gap_pct": 7.14589
+        "gap_pct": 7.468133
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 轉弱",
         "latest_color": "yellow",
-        "latest_pct": 14.408713,
+        "latest_pct": 14.474659,
         "yellow_run_length": 10,
         "mature": true
       },
@@ -461,7 +461,7 @@
         },
         {
           "date": "08/07",
-          "pct": 14.408713,
+          "pct": 14.474659,
           "color": "yellow"
         }
       ]
@@ -472,9 +472,9 @@
         "L1/L2",
         "支付"
       ],
-      "price": 0.0899,
-      "bb_midline_1d": 0.083975,
-      "bb_pct": 7.055671,
+      "price": 0.0898,
+      "bb_midline_1d": 0.08397,
+      "bb_pct": 6.942956,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -488,13 +488,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.08803031,
-        "gap_pct": 2.123916
+        "gap_pct": 2.010319
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": 5.686216,
+        "latest_pct": 5.662737,
         "yellow_run_length": 6,
         "mature": true
       },
@@ -547,7 +547,7 @@
         },
         {
           "date": "08/07",
-          "pct": 5.686216,
+          "pct": 5.662737,
           "color": "yellow"
         }
       ]
@@ -816,9 +816,9 @@
         "L1/L2",
         "跨鏈"
       ],
-      "price": 1.355,
-      "bb_midline_1d": 1.36095,
-      "bb_pct": -0.437195,
+      "price": 1.356,
+      "bb_midline_1d": 1.361,
+      "bb_pct": -0.367377,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
@@ -832,13 +832,13 @@
       "threshold": {
         "state": "yellow",
         "price": 1.34647338,
-        "gap_pct": 0.633256
+        "gap_pct": 0.707524
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 待4H",
         "latest_color": "yellow",
-        "latest_pct": -0.437195,
+        "latest_pct": -0.422483,
         "yellow_run_length": 5,
         "mature": true
       },
@@ -891,7 +891,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.437195,
+          "pct": -0.422483,
           "color": "yellow"
         }
       ]
@@ -902,9 +902,9 @@
         "L1/L2",
         "DeFi"
       ],
-      "price": 6.43,
-      "bb_midline_1d": 6.505,
-      "bb_pct": -1.152959,
+      "price": 6.44,
+      "bb_midline_1d": 6.5055,
+      "bb_pct": -1.00684,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -918,13 +918,13 @@
       "threshold": {
         "state": "purple",
         "price": 6.74038848,
-        "gap_pct": -4.604905
+        "gap_pct": -4.456546
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -1.191391,
+        "latest_pct": -1.160556,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -977,7 +977,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.191391,
+          "pct": -1.160556,
           "color": "purple"
         }
       ]
@@ -987,9 +987,9 @@
       "sectors": [
         "GameFi"
       ],
-      "price": 0.891,
-      "bb_midline_1d": 0.87125,
-      "bb_pct": 2.266858,
+      "price": 0.888,
+      "bb_midline_1d": 0.8711,
+      "bb_pct": 1.940076,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -1003,13 +1003,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.82158279,
-        "gap_pct": 8.449204
+        "gap_pct": 8.084056
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": 2.582496,
+        "latest_pct": 2.514063,
         "yellow_run_length": 3,
         "mature": true
       },
@@ -1062,7 +1062,7 @@
         },
         {
           "date": "08/07",
-          "pct": 2.582496,
+          "pct": 2.514063,
           "color": "yellow"
         }
       ]
@@ -1159,11 +1159,11 @@
         "核心大幣",
         "交易所"
       ],
-      "price": 593.09,
-      "bb_midline_1d": 578.8945,
-      "bb_pct": 2.452174,
+      "price": 593.39,
+      "bb_midline_1d": 578.9105,
+      "bb_pct": 2.501164,
       "d1_prev": "green",
-      "d1_curr": "red",
+      "d1_curr": "green",
       "h4_prev": "red",
       "h4_curr": "green",
       "h4_tail": [
@@ -1173,21 +1173,21 @@
         "green"
       ],
       "threshold": {
-        "state": "purple",
+        "state": "yellow",
         "price": 593.27541679,
-        "gap_pct": -0.031253
+        "gap_pct": 0.019314
       },
       "ladder": {
-        "state": "red",
-        "label": "Reset",
-        "latest_color": "purple",
-        "latest_pct": 2.41633,
-        "yellow_run_length": 0,
-        "mature": false
+        "state": "green",
+        "label": "L2+ 啟動",
+        "latest_color": "yellow",
+        "latest_pct": 2.427318,
+        "yellow_run_length": 5,
+        "mature": true
       },
       "pattern": {
-        "type": "紫線未轉黃觀察型",
-        "breakout_pullback_restart": false,
+        "type": "中軌突破回踩轉黃型",
+        "breakout_pullback_restart": true,
         "po3_quality": "none",
         "po3_strong": false,
         "po3_candidate": false,
@@ -1195,7 +1195,7 @@
         "yellow_over_previous_purple_count": 3,
         "four_h_trigger": "red_green"
       },
-      "score": 42,
+      "score": 100,
       "ladder_tail": [
         {
           "date": "07/31",
@@ -1234,8 +1234,8 @@
         },
         {
           "date": "08/07",
-          "pct": 2.41633,
-          "color": "purple"
+          "pct": 2.427318,
+          "color": "yellow"
         }
       ]
     },
@@ -1245,9 +1245,9 @@
         "Meme",
         "SOL生態"
       ],
-      "price": 0.000598,
-      "bb_midline_1d": 0.0005199,
-      "bb_pct": 15.02212,
+      "price": 0.000597,
+      "bb_midline_1d": 0.00051985,
+      "bb_pct": 14.840819,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -1261,13 +1261,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.00057858,
-        "gap_pct": 3.356493
+        "gap_pct": 3.183657
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 延續",
         "latest_color": "yellow",
-        "latest_pct": 14.445086,
+        "latest_pct": 14.408002,
         "yellow_run_length": 2,
         "mature": true
       },
@@ -1320,7 +1320,7 @@
         },
         {
           "date": "08/07",
-          "pct": 14.445086,
+          "pct": 14.408002,
           "color": "yellow"
         }
       ]
@@ -1417,9 +1417,9 @@
         "核心大幣",
         "價值儲藏"
       ],
-      "price": 64414.0,
-      "bb_midline_1d": 64420.441,
-      "bb_pct": -0.009998,
+      "price": 64452.32,
+      "bb_midline_1d": 64422.357,
+      "bb_pct": 0.04651,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
@@ -1433,13 +1433,13 @@
       "threshold": {
         "state": "yellow",
         "price": 64121.7615366,
-        "gap_pct": 0.455756
+        "gap_pct": 0.515517
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 待4H",
         "latest_color": "yellow",
-        "latest_pct": -0.065804,
+        "latest_pct": -0.053905,
         "yellow_run_length": 5,
         "mature": true
       },
@@ -1492,7 +1492,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.065804,
+          "pct": -0.053905,
           "color": "yellow"
         }
       ]
@@ -1503,9 +1503,9 @@
         "DeFi",
         "DEX"
       ],
-      "price": 1.398,
-      "bb_midline_1d": 1.4086,
-      "bb_pct": -0.75252,
+      "price": 1.4,
+      "bb_midline_1d": 1.4087,
+      "bb_pct": -0.617591,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -1519,13 +1519,13 @@
       "threshold": {
         "state": "purple",
         "price": 1.42744171,
-        "gap_pct": -2.062551
+        "gap_pct": -1.92244
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -0.521795,
+        "latest_pct": -0.493363,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -1578,7 +1578,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.521795,
+          "pct": -0.493363,
           "color": "purple"
         }
       ]
@@ -1589,9 +1589,9 @@
         "支付/老幣",
         "Fan Token"
       ],
-      "price": 0.01297,
-      "bb_midline_1d": 0.013626,
-      "bb_pct": -4.814326,
+      "price": 0.01296,
+      "bb_midline_1d": 0.0136255,
+      "bb_pct": -4.884224,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
@@ -1605,13 +1605,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.01278545,
-        "gap_pct": 1.443438
+        "gap_pct": 1.365224
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 啟動",
         "latest_color": "yellow",
-        "latest_pct": -5.346397,
+        "latest_pct": -5.361271,
         "yellow_run_length": 2,
         "mature": true
       },
@@ -1664,7 +1664,7 @@
         },
         {
           "date": "08/07",
-          "pct": -5.346397,
+          "pct": -5.361271,
           "color": "yellow"
         }
       ]
@@ -1675,9 +1675,9 @@
         "DeFi",
         "借貸"
       ],
-      "price": 16.37,
-      "bb_midline_1d": 16.795,
-      "bb_pct": -2.530515,
+      "price": 16.39,
+      "bb_midline_1d": 16.796,
+      "bb_pct": -2.417242,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "green",
@@ -1691,13 +1691,13 @@
       "threshold": {
         "state": "purple",
         "price": 16.50715719,
-        "gap_pct": -0.830895
+        "gap_pct": -0.709736
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -2.783567,
+        "latest_pct": -2.744701,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -1750,7 +1750,7 @@
         },
         {
           "date": "08/07",
-          "pct": -2.783567,
+          "pct": -2.744701,
           "color": "purple"
         }
       ]
@@ -1761,9 +1761,9 @@
         "DeFi",
         "DEX"
       ],
-      "price": 0.2164,
-      "bb_midline_1d": 0.20899,
-      "bb_pct": 3.545624,
+      "price": 0.2166,
+      "bb_midline_1d": 0.209,
+      "bb_pct": 3.636364,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -1776,14 +1776,14 @@
       ],
       "threshold": {
         "state": "yellow",
-        "price": 0.20071726,
-        "gap_pct": 7.813349
+        "price": 0.20066726,
+        "gap_pct": 7.93988
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": 3.150868,
+        "latest_pct": 3.181818,
         "yellow_run_length": 4,
         "mature": true
       },
@@ -1836,7 +1836,7 @@
         },
         {
           "date": "08/07",
-          "pct": 3.150868,
+          "pct": 3.181818,
           "color": "yellow"
         }
       ]
@@ -1847,9 +1847,9 @@
         "Meme",
         "核心大幣"
       ],
-      "price": 0.0692,
-      "bb_midline_1d": 0.0707535,
-      "bb_pct": -2.195651,
+      "price": 0.06929,
+      "bb_midline_1d": 0.070758,
+      "bb_pct": -2.074677,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -1863,13 +1863,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.07041896,
-        "gap_pct": -1.731011
+        "gap_pct": -1.603205
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -2.206251,
+        "latest_pct": -2.180672,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -1922,7 +1922,7 @@
         },
         {
           "date": "08/07",
-          "pct": -2.206251,
+          "pct": -2.180672,
           "color": "purple"
         }
       ]
@@ -2019,29 +2019,29 @@
         "交易所/合約",
         "DeFi"
       ],
-      "price": 0.1162,
-      "bb_midline_1d": 0.11754,
-      "bb_pct": -1.140037,
+      "price": 0.1158,
+      "bb_midline_1d": 0.11752,
+      "bb_pct": -1.463581,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
-      "h4_curr": "green",
+      "h4_curr": "red",
       "h4_tail": [
         "green",
         "green",
         "red",
-        "green"
+        "red"
       ],
       "threshold": {
         "state": "yellow",
         "price": 0.11186018,
-        "gap_pct": 3.879683
+        "gap_pct": 3.522093
       },
       "ladder": {
-        "state": "green",
-        "label": "L2+ 啟動",
+        "state": "yellow",
+        "label": "L2+ 待4H",
         "latest_color": "yellow",
-        "latest_pct": -1.71431,
+        "latest_pct": -1.782675,
         "yellow_run_length": 4,
         "mature": true
       },
@@ -2053,9 +2053,9 @@
         "po3_candidate": true,
         "po3_early": false,
         "yellow_over_previous_purple_count": 3,
-        "four_h_trigger": "red_green"
+        "four_h_trigger": "red_red"
       },
-      "score": 80,
+      "score": 78,
       "ladder_tail": [
         {
           "date": "07/31",
@@ -2094,7 +2094,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.71431,
+          "pct": -1.782675,
           "color": "yellow"
         }
       ]
@@ -2191,9 +2191,9 @@
         "DeFi",
         "穩定幣"
       ],
-      "price": 0.0924,
-      "bb_midline_1d": 0.086455,
-      "bb_pct": 6.87641,
+      "price": 0.0925,
+      "bb_midline_1d": 0.08646,
+      "bb_pct": 6.985889,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -2207,13 +2207,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.08986314,
-        "gap_pct": 2.823026
+        "gap_pct": 2.934307
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": 7.310161,
+        "latest_pct": 7.332871,
         "yellow_run_length": 6,
         "mature": true
       },
@@ -2266,7 +2266,7 @@
         },
         {
           "date": "08/07",
-          "pct": 7.310161,
+          "pct": 7.332871,
           "color": "yellow"
         }
       ]
@@ -2276,9 +2276,9 @@
       "sectors": [
         "GameFi"
       ],
-      "price": 0.02552,
-      "bb_midline_1d": 0.0260655,
-      "bb_pct": -2.092805,
+      "price": 0.02551,
+      "bb_midline_1d": 0.026065,
+      "bb_pct": -2.129292,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -2292,13 +2292,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.02467405,
-        "gap_pct": 3.428501
+        "gap_pct": 3.387972
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 延續",
         "latest_color": "yellow",
-        "latest_pct": -1.785886,
+        "latest_pct": -1.803184,
         "yellow_run_length": 2,
         "mature": true
       },
@@ -2351,7 +2351,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.785886,
+          "pct": -1.803184,
           "color": "yellow"
         }
       ]
@@ -2362,9 +2362,9 @@
         "支付/老幣",
         "PoW"
       ],
-      "price": 6.52,
-      "bb_midline_1d": 6.727,
-      "bb_pct": -3.077152,
+      "price": 6.51,
+      "bb_midline_1d": 6.7265,
+      "bb_pct": -3.218613,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "green",
@@ -2378,13 +2378,13 @@
       "threshold": {
         "state": "purple",
         "price": 6.56363232,
-        "gap_pct": -0.664759
+        "gap_pct": -0.817113
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -3.300134,
+        "latest_pct": -3.330112,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -2437,7 +2437,7 @@
         },
         {
           "date": "08/07",
-          "pct": -3.300134,
+          "pct": -3.330112,
           "color": "purple"
         }
       ]
@@ -2448,9 +2448,9 @@
         "核心大幣",
         "DeFi"
       ],
-      "price": 1902.99,
-      "bb_midline_1d": 1894.6735,
-      "bb_pct": 0.438941,
+      "price": 1904.67,
+      "bb_midline_1d": 1894.7565,
+      "bb_pct": 0.523207,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
@@ -2464,13 +2464,13 @@
       "threshold": {
         "state": "yellow",
         "price": 1878.71497682,
-        "gap_pct": 1.292108
+        "gap_pct": 1.381531
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 待4H",
         "latest_color": "yellow",
-        "latest_pct": 0.455699,
+        "latest_pct": 0.473201,
         "yellow_run_length": 3,
         "mature": true
       },
@@ -2523,7 +2523,7 @@
         },
         {
           "date": "08/07",
-          "pct": 0.455699,
+          "pct": 0.473201,
           "color": "yellow"
         }
       ]
@@ -2534,9 +2534,9 @@
         "DePIN",
         "Storage"
       ],
-      "price": 0.7009,
-      "bb_midline_1d": 0.720635,
-      "bb_pct": -2.738557,
+      "price": 0.7019,
+      "bb_midline_1d": 0.720685,
+      "bb_pct": -2.606548,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -2550,13 +2550,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.72762023,
-        "gap_pct": -3.672277
+        "gap_pct": -3.534843
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -2.533876,
+        "latest_pct": -2.505949,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -2609,7 +2609,7 @@
         },
         {
           "date": "08/07",
-          "pct": -2.533876,
+          "pct": -2.505949,
           "color": "purple"
         }
       ]
@@ -2620,9 +2620,9 @@
         "Meme",
         "多鏈"
       ],
-      "price": 2.136e-05,
+      "price": 2.137e-05,
       "bb_midline_1d": 2.1e-05,
-      "bb_pct": 1.719129,
+      "bb_pct": 1.764328,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -2636,13 +2636,13 @@
       "threshold": {
         "state": "yellow",
         "price": 2.017e-05,
-        "gap_pct": 5.899851
+        "gap_pct": 5.94943
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": 1.338159,
+        "latest_pct": 1.347651,
         "yellow_run_length": 5,
         "mature": true
       },
@@ -2695,7 +2695,7 @@
         },
         {
           "date": "08/07",
-          "pct": 1.338159,
+          "pct": 1.347651,
           "color": "yellow"
         }
       ]
@@ -2791,9 +2791,9 @@
       "sectors": [
         "GameFi"
       ],
-      "price": 0.0018,
-      "bb_midline_1d": 0.001886,
-      "bb_pct": -4.559915,
+      "price": 0.00181,
+      "bb_midline_1d": 0.0018865,
+      "bb_pct": -4.055129,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -2807,13 +2807,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.001769,
-        "gap_pct": 1.752402
+        "gap_pct": 2.317694
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": -4.427359,
+        "latest_pct": -4.32017,
         "yellow_run_length": 2,
         "mature": true
       },
@@ -2866,7 +2866,7 @@
         },
         {
           "date": "08/07",
-          "pct": -4.427359,
+          "pct": -4.32017,
           "color": "yellow"
         }
       ]
@@ -2963,9 +2963,9 @@
         "交易所/合約",
         "DeFi"
       ],
-      "price": 6.38,
-      "bb_midline_1d": 6.4915,
-      "bb_pct": -1.717631,
+      "price": 6.39,
+      "bb_midline_1d": 6.492,
+      "bb_pct": -1.571165,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -2979,13 +2979,13 @@
       "threshold": {
         "state": "yellow",
         "price": 6.19067026,
-        "gap_pct": 3.058308
+        "gap_pct": 3.219841
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": -2.025726,
+        "latest_pct": -1.994763,
         "yellow_run_length": 5,
         "mature": true
       },
@@ -3038,7 +3038,7 @@
         },
         {
           "date": "08/07",
-          "pct": -2.025726,
+          "pct": -1.994763,
           "color": "yellow"
         }
       ]
@@ -3049,9 +3049,9 @@
         "Oracle/Data",
         "AI"
       ],
-      "price": 0.01453,
-      "bb_midline_1d": 0.015364,
-      "bb_pct": -5.428274,
+      "price": 0.01452,
+      "bb_midline_1d": 0.0153635,
+      "bb_pct": -5.490285,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "green",
@@ -3065,13 +3065,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.01482621,
-        "gap_pct": -1.997881
+        "gap_pct": -2.065329
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -5.590992,
+        "latest_pct": -5.604192,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -3124,7 +3124,7 @@
         },
         {
           "date": "08/07",
-          "pct": -5.590992,
+          "pct": -5.604192,
           "color": "purple"
         }
       ]
@@ -3135,9 +3135,9 @@
         "L1/L2",
         "企業鏈"
       ],
-      "price": 0.06831,
-      "bb_midline_1d": 0.069264,
-      "bb_pct": -1.377339,
+      "price": 0.06834,
+      "bb_midline_1d": 0.0692655,
+      "bb_pct": -1.336163,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -3151,13 +3151,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.07018009,
-        "gap_pct": -2.664702
+        "gap_pct": -2.621954
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -1.348464,
+        "latest_pct": -1.339772,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -3210,7 +3210,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.348464,
+          "pct": -1.339772,
           "color": "purple"
         }
       ]
@@ -3221,9 +3221,9 @@
         "交易所/合約",
         "L1/L2"
       ],
-      "price": 55.72,
-      "bb_midline_1d": 56.6625,
-      "bb_pct": -1.663358,
+      "price": 55.8,
+      "bb_midline_1d": 56.6665,
+      "bb_pct": -1.529122,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -3237,13 +3237,13 @@
       "threshold": {
         "state": "yellow",
         "price": 55.08863142,
-        "gap_pct": 1.146096
+        "gap_pct": 1.291316
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 轉弱",
         "latest_color": "yellow",
-        "latest_pct": -1.275094,
+        "latest_pct": -1.246768,
         "yellow_run_length": 5,
         "mature": true
       },
@@ -3296,7 +3296,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.275094,
+          "pct": -1.246768,
           "color": "yellow"
         }
       ]
@@ -3307,9 +3307,9 @@
         "AI",
         "L1/L2"
       ],
-      "price": 2.088,
-      "bb_midline_1d": 2.1209,
-      "bb_pct": -1.551228,
+      "price": 2.089,
+      "bb_midline_1d": 2.12095,
+      "bb_pct": -1.5064,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "green",
@@ -3323,13 +3323,13 @@
       "threshold": {
         "state": "purple",
         "price": 2.08947538,
-        "gap_pct": -0.07061
+        "gap_pct": -0.022751
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -1.421566,
+        "latest_pct": -1.412103,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -3382,7 +3382,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.421566,
+          "pct": -1.412103,
           "color": "purple"
         }
       ]
@@ -3393,9 +3393,9 @@
         "GameFi",
         "L1/L2"
       ],
-      "price": 0.1121,
-      "bb_midline_1d": 0.11717,
-      "bb_pct": -4.327046,
+      "price": 0.1122,
+      "bb_midline_1d": 0.117175,
+      "bb_pct": -4.245786,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
@@ -3408,14 +3408,14 @@
       ],
       "threshold": {
         "state": "yellow",
-        "price": 0.10988505,
-        "gap_pct": 2.015697
+        "price": 0.10983505,
+        "gap_pct": 2.153183
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 啟動",
         "latest_color": "yellow",
-        "latest_pct": -4.881796,
+        "latest_pct": -4.843183,
         "yellow_run_length": 3,
         "mature": true
       },
@@ -3468,7 +3468,7 @@
         },
         {
           "date": "08/07",
-          "pct": -4.881796,
+          "pct": -4.843183,
           "color": "yellow"
         }
       ]
@@ -3565,9 +3565,9 @@
         "SOL生態",
         "LSD"
       ],
-      "price": 0.4899,
-      "bb_midline_1d": 0.55111,
-      "bb_pct": -11.106676,
+      "price": 0.4898,
+      "bb_midline_1d": 0.551105,
+      "bb_pct": -11.124014,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -3581,13 +3581,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.52613223,
-        "gap_pct": -6.886525
+        "gap_pct": -6.905532
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -11.682786,
+        "latest_pct": -11.686521,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -3640,7 +3640,7 @@
         },
         {
           "date": "08/07",
-          "pct": -11.682786,
+          "pct": -11.686521,
           "color": "purple"
         }
       ]
@@ -3651,9 +3651,9 @@
         "SOL生態",
         "DeFi"
       ],
-      "price": 0.1818,
-      "bb_midline_1d": 0.19091,
-      "bb_pct": -4.771882,
+      "price": 0.1817,
+      "bb_midline_1d": 0.190905,
+      "bb_pct": -4.82177,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -3667,13 +3667,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.19487335,
-        "gap_pct": -6.708639
+        "gap_pct": -6.759955
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -5.138547,
+        "latest_pct": -5.149158,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -3726,7 +3726,7 @@
         },
         {
           "date": "08/07",
-          "pct": -5.138547,
+          "pct": -5.149158,
           "color": "purple"
         }
       ]
@@ -3737,9 +3737,9 @@
         "AI",
         "InfoFi"
       ],
-      "price": 0.8961,
-      "bb_midline_1d": 1.03937,
-      "bb_pct": -13.784312,
+      "price": 0.8998,
+      "bb_midline_1d": 1.039555,
+      "bb_pct": -13.443733,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "green",
@@ -3753,13 +3753,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.97533025,
-        "gap_pct": -8.123428
+        "gap_pct": -7.744069
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -13.274387,
+        "latest_pct": -13.200841,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -3812,7 +3812,7 @@
         },
         {
           "date": "08/07",
-          "pct": -13.274387,
+          "pct": -13.200841,
           "color": "purple"
         }
       ]
@@ -3823,9 +3823,9 @@
         "PoW",
         "L1/L2"
       ],
-      "price": 0.02572,
-      "bb_midline_1d": 0.0274445,
-      "bb_pct": -6.283591,
+      "price": 0.02574,
+      "bb_midline_1d": 0.0274455,
+      "bb_pct": -6.214133,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -3839,13 +3839,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.02656611,
-        "gap_pct": -3.184922
+        "gap_pct": -3.109639
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -6.374683,
+        "latest_pct": -6.359877,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -3898,7 +3898,7 @@
         },
         {
           "date": "08/07",
-          "pct": -6.374683,
+          "pct": -6.359877,
           "color": "purple"
         }
       ]
@@ -3909,9 +3909,9 @@
         "L1/L2",
         "DeFi"
       ],
-      "price": 0.0409,
-      "bb_midline_1d": 0.043375,
-      "bb_pct": -5.706052,
+      "price": 0.0408,
+      "bb_midline_1d": 0.04337,
+      "bb_pct": -5.925755,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -3925,13 +3925,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.04008243,
-        "gap_pct": 2.039722
+        "gap_pct": 1.790236
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 延續",
         "latest_color": "yellow",
-        "latest_pct": -5.302594,
+        "latest_pct": -5.34932,
         "yellow_run_length": 2,
         "mature": true
       },
@@ -3984,7 +3984,7 @@
         },
         {
           "date": "08/07",
-          "pct": -5.302594,
+          "pct": -5.34932,
           "color": "yellow"
         }
       ]
@@ -3995,9 +3995,9 @@
         "DeFi",
         "LSD"
       ],
-      "price": 0.2914,
-      "bb_midline_1d": 0.35041,
-      "bb_pct": -16.840273,
+      "price": 0.2907,
+      "bb_midline_1d": 0.350375,
+      "bb_pct": -17.031752,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -4010,14 +4010,14 @@
       ],
       "threshold": {
         "state": "purple",
-        "price": 0.30601301,
-        "gap_pct": -4.77529
+        "price": 0.30631301,
+        "gap_pct": -5.097077
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -16.633372,
+        "latest_pct": -16.717802,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -4070,7 +4070,7 @@
         },
         {
           "date": "08/07",
-          "pct": -16.633372,
+          "pct": -16.717802,
           "color": "purple"
         }
       ]
@@ -4081,9 +4081,9 @@
         "Oracle/Data",
         "DeFi"
       ],
-      "price": 8.2,
-      "bb_midline_1d": 8.372,
-      "bb_pct": -2.054467,
+      "price": 8.21,
+      "bb_midline_1d": 8.3725,
+      "bb_pct": -1.940878,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
@@ -4097,13 +4097,13 @@
       "threshold": {
         "state": "yellow",
         "price": 8.15583014,
-        "gap_pct": 0.541574
+        "gap_pct": 0.664186
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 啟動",
         "latest_color": "yellow",
-        "latest_pct": -2.024606,
+        "latest_pct": -2.000597,
         "yellow_run_length": 2,
         "mature": true
       },
@@ -4156,7 +4156,7 @@
         },
         {
           "date": "08/07",
-          "pct": -2.024606,
+          "pct": -2.000597,
           "color": "yellow"
         }
       ]
@@ -4339,9 +4339,9 @@
         "支付/老幣",
         "價值儲藏"
       ],
-      "price": 45.59,
-      "bb_midline_1d": 45.9115,
-      "bb_pct": -0.70026,
+      "price": 45.61,
+      "bb_midline_1d": 45.9125,
+      "bb_pct": -0.658862,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -4355,13 +4355,13 @@
       "threshold": {
         "state": "yellow",
         "price": 44.6005538,
-        "gap_pct": 2.218462
+        "gap_pct": 2.263304
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": -0.814611,
+        "latest_pct": -0.805881,
         "yellow_run_length": 4,
         "mature": true
       },
@@ -4414,7 +4414,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.814611,
+          "pct": -0.805881,
           "color": "yellow"
         }
       ]
@@ -4425,9 +4425,9 @@
         "GameFi",
         "元宇宙"
       ],
-      "price": 0.0672,
-      "bb_midline_1d": 0.067615,
-      "bb_pct": -0.613769,
+      "price": 0.067,
+      "bb_midline_1d": 0.067605,
+      "bb_pct": -0.894904,
       "d1_prev": "red",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -4441,13 +4441,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.06643683,
-        "gap_pct": 1.148715
+        "gap_pct": 0.847677
       },
       "ladder": {
         "state": "red",
         "label": "L1 未成熟",
         "latest_color": "yellow",
-        "latest_pct": -0.98351,
+        "latest_pct": -1.042822,
         "yellow_run_length": 1,
         "mature": false
       },
@@ -4500,7 +4500,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.98351,
+          "pct": -1.042822,
           "color": "yellow"
         }
       ]
@@ -4596,9 +4596,9 @@
         "L1/L2",
         "AI"
       ],
-      "price": 1.661,
-      "bb_midline_1d": 1.7602,
-      "bb_pct": -5.635723,
+      "price": 1.663,
+      "bb_midline_1d": 1.7603,
+      "bb_pct": -5.527467,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -4612,13 +4612,13 @@
       "threshold": {
         "state": "purple",
         "price": 1.74533619,
-        "gap_pct": -4.832089
+        "gap_pct": -4.717497
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -5.62152,
+        "latest_pct": -5.598478,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -4671,7 +4671,7 @@
         },
         {
           "date": "08/07",
-          "pct": -5.62152,
+          "pct": -5.598478,
           "color": "purple"
         }
       ]
@@ -4682,9 +4682,9 @@
         "交易所/合約",
         "平台幣"
       ],
-      "price": 85.67,
-      "bb_midline_1d": 84.6495,
-      "bb_pct": 1.205559,
+      "price": 85.71,
+      "bb_midline_1d": 84.6515,
+      "bb_pct": 1.250421,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -4698,13 +4698,13 @@
       "threshold": {
         "state": "purple",
         "price": 86.70090376,
-        "gap_pct": -1.189035
+        "gap_pct": -1.142899
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": 1.102192,
+        "latest_pct": 1.111616,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -4757,7 +4757,7 @@
         },
         {
           "date": "08/07",
-          "pct": 1.102192,
+          "pct": 1.111616,
           "color": "purple"
         }
       ]
@@ -4768,9 +4768,9 @@
         "RWA",
         "DeFi"
       ],
-      "price": 0.3541,
-      "bb_midline_1d": 0.384485,
-      "bb_pct": -7.902779,
+      "price": 0.3545,
+      "bb_midline_1d": 0.384505,
+      "bb_pct": -7.80354,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -4783,14 +4783,14 @@
       ],
       "threshold": {
         "state": "purple",
-        "price": 0.38747611,
-        "gap_pct": -8.613721
+        "price": 0.38752611,
+        "gap_pct": -8.522293
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -7.239554,
+        "latest_pct": -7.224874,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -4843,7 +4843,7 @@
         },
         {
           "date": "08/07",
-          "pct": -7.239554,
+          "pct": -7.224874,
           "color": "purple"
         }
       ]
@@ -4854,9 +4854,9 @@
         "L1/L2",
         "Superchain"
       ],
-      "price": 0.0877,
-      "bb_midline_1d": 0.090225,
-      "bb_pct": -2.798559,
+      "price": 0.0876,
+      "bb_midline_1d": 0.09022,
+      "bb_pct": -2.904012,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -4870,13 +4870,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.08867665,
-        "gap_pct": -1.101361
+        "gap_pct": -1.21413
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -3.574397,
+        "latest_pct": -3.596763,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -4929,7 +4929,7 @@
         },
         {
           "date": "08/07",
-          "pct": -3.574397,
+          "pct": -3.596763,
           "color": "purple"
         }
       ]
@@ -5026,9 +5026,9 @@
         "價值儲藏",
         "RWA"
       ],
-      "price": 4246.87,
-      "bb_midline_1d": 4088.599,
-      "bb_pct": 3.871033,
+      "price": 4250.53,
+      "bb_midline_1d": 4088.782,
+      "bb_pct": 3.955897,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -5042,13 +5042,13 @@
       "threshold": {
         "state": "yellow",
         "price": 4122.08512073,
-        "gap_pct": 3.027227
+        "gap_pct": 3.116017
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 延續",
         "latest_color": "yellow",
-        "latest_pct": 3.824134,
+        "latest_pct": 3.841865,
         "yellow_run_length": 4,
         "mature": true
       },
@@ -5101,7 +5101,7 @@
         },
         {
           "date": "08/07",
-          "pct": 3.824134,
+          "pct": 3.841865,
           "color": "yellow"
         }
       ]
@@ -5112,9 +5112,9 @@
         "DeFi",
         "收益"
       ],
-      "price": 1.36,
-      "bb_midline_1d": 1.46925,
-      "bb_pct": -7.435767,
+      "price": 1.363,
+      "bb_midline_1d": 1.4694,
+      "bb_pct": -7.241051,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -5128,13 +5128,13 @@
       "threshold": {
         "state": "purple",
         "price": 1.39560846,
-        "gap_pct": -2.551465
+        "gap_pct": -2.336505
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -7.38472,
+        "latest_pct": -7.343133,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -5187,7 +5187,7 @@
         },
         {
           "date": "08/07",
-          "pct": -7.38472,
+          "pct": -7.343133,
           "color": "purple"
         }
       ]
@@ -5198,9 +5198,9 @@
         "Meme",
         "SOL生態"
       ],
-      "price": 0.006004,
-      "bb_midline_1d": 0.00610085,
-      "bb_pct": -1.587484,
+      "price": 0.00601,
+      "bb_midline_1d": 0.00610115,
+      "bb_pct": -1.493981,
       "d1_prev": "green",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -5214,13 +5214,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.00627651,
-        "gap_pct": -4.341744
+        "gap_pct": -4.24615
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -1.714515,
+        "latest_pct": -1.694762,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -5273,7 +5273,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.714515,
+          "pct": -1.694762,
           "color": "purple"
         }
       ]
@@ -5286,7 +5286,7 @@
       ],
       "price": 2.8e-06,
       "bb_midline_1d": 2.83e-06,
-      "bb_pct": -0.855668,
+      "bb_pct": -0.889274,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -5300,13 +5300,13 @@
       "threshold": {
         "state": "purple",
         "price": 2.91e-06,
-        "gap_pct": -3.642612
+        "gap_pct": -3.676976
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -0.758433,
+        "latest_pct": -0.765518,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -5359,7 +5359,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.758433,
+          "pct": -0.765518,
           "color": "purple"
         }
       ]
@@ -5370,9 +5370,9 @@
         "L1/L2",
         "Polygon"
       ],
-      "price": 0.0752,
-      "bb_midline_1d": 0.075395,
-      "bb_pct": -0.258638,
+      "price": 0.0753,
+      "bb_midline_1d": 0.0754,
+      "bb_pct": -0.132626,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
@@ -5386,13 +5386,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.0739518,
-        "gap_pct": 1.687856
+        "gap_pct": 1.823079
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 啟動",
         "latest_color": "yellow",
-        "latest_pct": -0.225479,
+        "latest_pct": -0.198939,
         "yellow_run_length": 6,
         "mature": true
       },
@@ -5445,7 +5445,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.225479,
+          "pct": -0.198939,
           "color": "yellow"
         }
       ]
@@ -5456,9 +5456,9 @@
         "Oracle/Data",
         "SOL生態"
       ],
-      "price": 0.0392,
-      "bb_midline_1d": 0.04245,
-      "bb_pct": -7.656066,
+      "price": 0.0391,
+      "bb_midline_1d": 0.042445,
+      "bb_pct": -7.880787,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -5472,13 +5472,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.03995919,
-        "gap_pct": -1.899913
+        "gap_pct": -2.150169
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -8.186101,
+        "latest_pct": -8.234185,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -5531,7 +5531,7 @@
         },
         {
           "date": "08/07",
-          "pct": -8.186101,
+          "pct": -8.234185,
           "color": "purple"
         }
       ]
@@ -5628,9 +5628,9 @@
         "隱私幣",
         "L1/L2"
       ],
-      "price": 0.00576,
-      "bb_midline_1d": 0.0054115,
-      "bb_pct": 6.439989,
+      "price": 0.00575,
+      "bb_midline_1d": 0.005411,
+      "bb_pct": 6.265016,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -5644,13 +5644,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.00531387,
-        "gap_pct": 8.395576
+        "gap_pct": 8.207389
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": 6.763374,
+        "latest_pct": 6.727038,
         "yellow_run_length": 4,
         "mature": true
       },
@@ -5703,7 +5703,7 @@
         },
         {
           "date": "08/07",
-          "pct": 6.763374,
+          "pct": 6.727038,
           "color": "yellow"
         }
       ]
@@ -5714,9 +5714,9 @@
         "DeFi",
         "LSD"
       ],
-      "price": 1.54,
-      "bb_midline_1d": 1.63,
-      "bb_pct": -5.521472,
+      "price": 1.55,
+      "bb_midline_1d": 1.6305,
+      "bb_pct": -4.937136,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -5730,13 +5730,13 @@
       "threshold": {
         "state": "purple",
         "price": 1.55889513,
-        "gap_pct": -1.212085
+        "gap_pct": -0.570605
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -5.981595,
+        "latest_pct": -5.857099,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -5789,7 +5789,7 @@
         },
         {
           "date": "08/07",
-          "pct": -5.981595,
+          "pct": -5.857099,
           "color": "purple"
         }
       ]
@@ -5800,9 +5800,9 @@
         "支付/老幣",
         "穩定幣"
       ],
-      "price": 0.001226,
-      "bb_midline_1d": 0.0012421,
-      "bb_pct": -1.296192,
+      "price": 0.001227,
+      "bb_midline_1d": 0.00124215,
+      "bb_pct": -1.219659,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "green",
@@ -5816,13 +5816,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.00123692,
-        "gap_pct": -0.882838
+        "gap_pct": -0.801992
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -1.195556,
+        "latest_pct": -1.179407,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -5875,7 +5875,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.195556,
+          "pct": -1.179407,
           "color": "purple"
         }
       ]
@@ -5886,9 +5886,9 @@
         "DeFi",
         "跨鏈"
       ],
-      "price": 0.442,
-      "bb_midline_1d": 0.4387,
-      "bb_pct": 0.752222,
+      "price": 0.441,
+      "bb_midline_1d": 0.43865,
+      "bb_pct": 0.535735,
       "d1_prev": "green",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -5902,13 +5902,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.44680001,
-        "gap_pct": -1.074308
+        "gap_pct": -1.298122
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": 0.524276,
+        "latest_pct": 0.478742,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -5961,7 +5961,7 @@
         },
         {
           "date": "08/07",
-          "pct": 0.524276,
+          "pct": 0.478742,
           "color": "purple"
         }
       ]
@@ -6058,9 +6058,9 @@
         "GameFi",
         "元宇宙"
       ],
-      "price": 0.0415,
-      "bb_midline_1d": 0.04382,
-      "bb_pct": -5.294386,
+      "price": 0.0414,
+      "bb_midline_1d": 0.043815,
+      "bb_pct": -5.511811,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -6074,13 +6074,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.0424312,
-        "gap_pct": -2.194612
+        "gap_pct": -2.430287
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -5.750799,
+        "latest_pct": -5.797101,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -6133,7 +6133,7 @@
         },
         {
           "date": "08/07",
-          "pct": -5.750799,
+          "pct": -5.797101,
           "color": "purple"
         }
       ]
@@ -6230,9 +6230,9 @@
         "Meme",
         "ETH生態"
       ],
-      "price": 4.67e-06,
+      "price": 4.68e-06,
       "bb_midline_1d": 4.65e-06,
-      "bb_pct": 0.45171,
+      "bb_pct": 0.655985,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -6246,13 +6246,13 @@
       "threshold": {
         "state": "purple",
         "price": 5.07e-06,
-        "gap_pct": -7.889546
+        "gap_pct": -7.692308
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": 0.505485,
+        "latest_pct": 0.548446,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -6305,7 +6305,7 @@
         },
         {
           "date": "08/07",
-          "pct": 0.505485,
+          "pct": 0.548446,
           "color": "purple"
         }
       ]
@@ -6402,9 +6402,9 @@
         "L1/L2",
         "SOL生態"
       ],
-      "price": 72.71,
-      "bb_midline_1d": 74.643,
-      "bb_pct": -2.58966,
+      "price": 72.77,
+      "bb_midline_1d": 74.646,
+      "bb_pct": -2.513196,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -6418,13 +6418,13 @@
       "threshold": {
         "state": "purple",
         "price": 74.47364427,
-        "gap_pct": -2.368146
+        "gap_pct": -2.28758
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -2.596359,
+        "latest_pct": -2.580178,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -6477,7 +6477,7 @@
         },
         {
           "date": "08/07",
-          "pct": -2.596359,
+          "pct": -2.580178,
           "color": "purple"
         }
       ]
@@ -6574,9 +6574,9 @@
         "BTC生態",
         "L1/L2"
       ],
-      "price": 0.131,
-      "bb_midline_1d": 0.144555,
-      "bb_pct": -9.377054,
+      "price": 0.1309,
+      "bb_midline_1d": 0.14455,
+      "bb_pct": -9.443099,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -6590,13 +6590,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.13802415,
-        "gap_pct": -5.089073
+        "gap_pct": -5.161524
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -9.705648,
+        "latest_pct": -9.71982,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -6649,7 +6649,7 @@
         },
         {
           "date": "08/07",
-          "pct": -9.705648,
+          "pct": -9.71982,
           "color": "purple"
         }
       ]
@@ -6660,9 +6660,9 @@
         "L1/L2",
         "新公鏈"
       ],
-      "price": 0.6761,
-      "bb_midline_1d": 0.708205,
-      "bb_pct": -4.533292,
+      "price": 0.6772,
+      "bb_midline_1d": 0.70826,
+      "bb_pct": -4.385395,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -6676,13 +6676,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.69922067,
-        "gap_pct": -3.306634
+        "gap_pct": -3.149316
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -4.720385,
+        "latest_pct": -4.688956,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -6735,7 +6735,7 @@
         },
         {
           "date": "08/07",
-          "pct": -4.720385,
+          "pct": -4.688956,
           "color": "purple"
         }
       ]
@@ -6832,9 +6832,9 @@
         "AI",
         "DePIN"
       ],
-      "price": 192.3,
-      "bb_midline_1d": 194.01,
-      "bb_pct": -0.881398,
+      "price": 192.5,
+      "bb_midline_1d": 194.02,
+      "bb_pct": -0.783424,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -6848,13 +6848,13 @@
       "threshold": {
         "state": "purple",
         "price": 198.16812497,
-        "gap_pct": -2.961185
+        "gap_pct": -2.860261
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -0.958713,
+        "latest_pct": -0.938048,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -6907,7 +6907,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.958713,
+          "pct": -0.938048,
           "color": "purple"
         }
       ]
@@ -7004,9 +7004,9 @@
         "Meme",
         "SOL生態"
       ],
-      "price": 1.494,
-      "bb_midline_1d": 1.51435,
-      "bb_pct": -1.343811,
+      "price": 1.496,
+      "bb_midline_1d": 1.51445,
+      "bb_pct": -1.218264,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -7019,14 +7019,14 @@
       ],
       "threshold": {
         "state": "yellow",
-        "price": 1.44296074,
-        "gap_pct": 3.53712
+        "price": 1.44146074,
+        "gap_pct": 3.783611
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": -1.822564,
+        "latest_pct": -1.746509,
         "yellow_run_length": 6,
         "mature": true
       },
@@ -7079,7 +7079,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.822564,
+          "pct": -1.746509,
           "color": "yellow"
         }
       ]
@@ -7090,9 +7090,9 @@
         "支付/老幣",
         "L1/L2"
       ],
-      "price": 0.3273,
-      "bb_midline_1d": 0.327935,
-      "bb_pct": -0.193636,
+      "price": 0.3271,
+      "bb_midline_1d": 0.327925,
+      "bb_pct": -0.251582,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -7106,13 +7106,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.32804647,
-        "gap_pct": -0.22755
+        "gap_pct": -0.288517
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -0.208883,
+        "latest_pct": -0.221087,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -7165,7 +7165,7 @@
         },
         {
           "date": "08/07",
-          "pct": -0.208883,
+          "pct": -0.221087,
           "color": "purple"
         }
       ]
@@ -7176,9 +7176,9 @@
         "DeFi",
         "DEX"
       ],
-      "price": 4.046,
+      "price": 4.045,
       "bb_midline_1d": 3.9132,
-      "bb_pct": 3.393642,
+      "bb_pct": 3.368087,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "red",
@@ -7192,7 +7192,7 @@
       "threshold": {
         "state": "yellow",
         "price": 3.9743292,
-        "gap_pct": 1.803343
+        "gap_pct": 1.778182
       },
       "ladder": {
         "state": "green",
@@ -7262,9 +7262,9 @@
         "RWA",
         "供應鏈"
       ],
-      "price": 0.00463,
-      "bb_midline_1d": 0.00469,
-      "bb_pct": -1.279318,
+      "price": 0.00462,
+      "bb_midline_1d": 0.0046895,
+      "bb_pct": -1.482034,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -7278,13 +7278,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.00470396,
-        "gap_pct": -1.572292
+        "gap_pct": -1.784879
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -1.279318,
+        "latest_pct": -1.322103,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -7337,7 +7337,7 @@
         },
         {
           "date": "08/07",
-          "pct": -1.279318,
+          "pct": -1.322103,
           "color": "purple"
         }
       ]
@@ -7348,9 +7348,9 @@
         "跨鏈",
         "Oracle/Data"
       ],
-      "price": 0.00844,
-      "bb_midline_1d": 0.00865,
-      "bb_pct": -2.427746,
+      "price": 0.00845,
+      "bb_midline_1d": 0.0086505,
+      "bb_pct": -2.317785,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -7364,13 +7364,13 @@
       "threshold": {
         "state": "yellow",
         "price": 0.00822078,
-        "gap_pct": 2.666657
+        "gap_pct": 2.7883
       },
       "ladder": {
         "state": "yellow",
         "label": "L2+ 綠綠未觸發",
         "latest_color": "yellow",
-        "latest_pct": -2.427746,
+        "latest_pct": -2.404485,
         "yellow_run_length": 5,
         "mature": true
       },
@@ -7423,7 +7423,7 @@
         },
         {
           "date": "08/07",
-          "pct": -2.427746,
+          "pct": -2.404485,
           "color": "yellow"
         }
       ]
@@ -7434,43 +7434,43 @@
         "Meme",
         "SOL生態"
       ],
-      "price": 0.141,
-      "bb_midline_1d": 0.14575,
-      "bb_pct": -3.259005,
+      "price": 0.14,
+      "bb_midline_1d": 0.1457,
+      "bb_pct": -3.912148,
       "d1_prev": "red",
-      "d1_curr": "green",
+      "d1_curr": "red",
       "h4_prev": "red",
-      "h4_curr": "green",
+      "h4_curr": "red",
       "h4_tail": [
         "red",
         "green",
         "red",
-        "green"
+        "red"
       ],
       "threshold": {
-        "state": "yellow",
+        "state": "purple",
         "price": 0.14051617,
-        "gap_pct": 0.344323
+        "gap_pct": -0.367339
       },
       "ladder": {
         "state": "red",
-        "label": "L1 未成熟",
-        "latest_color": "yellow",
-        "latest_pct": -3.773585,
-        "yellow_run_length": 1,
+        "label": "Reset",
+        "latest_color": "purple",
+        "latest_pct": -3.912148,
+        "yellow_run_length": 0,
         "mature": false
       },
       "pattern": {
-        "type": "中軌下方 PO3/AMD 反轉候選型",
+        "type": "紫線未轉黃觀察型",
         "breakout_pullback_restart": false,
-        "po3_quality": "w_bottom_candidate",
+        "po3_quality": "none",
         "po3_strong": false,
-        "po3_candidate": true,
-        "po3_early": true,
+        "po3_candidate": false,
+        "po3_early": false,
         "yellow_over_previous_purple_count": 3,
-        "four_h_trigger": "red_green"
+        "four_h_trigger": "red_red"
       },
-      "score": 74,
+      "score": 0,
       "ladder_tail": [
         {
           "date": "07/31",
@@ -7509,8 +7509,8 @@
         },
         {
           "date": "08/07",
-          "pct": -3.773585,
-          "color": "yellow"
+          "pct": -3.912148,
+          "color": "purple"
         }
       ]
     },
@@ -7520,9 +7520,9 @@
         "AI",
         "身份"
       ],
-      "price": 0.3026,
-      "bb_midline_1d": 0.334085,
-      "bb_pct": -9.424248,
+      "price": 0.3033,
+      "bb_midline_1d": 0.33412,
+      "bb_pct": -9.224231,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -7536,13 +7536,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.32647726,
-        "gap_pct": -7.313606
+        "gap_pct": -7.099196
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -9.401799,
+        "latest_pct": -9.358913,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -7595,7 +7595,7 @@
         },
         {
           "date": "08/07",
-          "pct": -9.401799,
+          "pct": -9.358913,
           "color": "purple"
         }
       ]
@@ -7605,9 +7605,9 @@
       "sectors": [
         "未分類"
       ],
-      "price": 0.1619,
-      "bb_midline_1d": 0.17562,
-      "bb_pct": -7.812322,
+      "price": 0.1621,
+      "bb_midline_1d": 0.17563,
+      "bb_pct": -7.703695,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -7621,13 +7621,13 @@
       "threshold": {
         "state": "purple",
         "price": 0.17063171,
-        "gap_pct": -5.117284
+        "gap_pct": -5.000073
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -7.840793,
+        "latest_pct": -7.817571,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -7680,7 +7680,7 @@
         },
         {
           "date": "08/07",
-          "pct": -7.840793,
+          "pct": -7.817571,
           "color": "purple"
         }
       ]
@@ -7691,9 +7691,9 @@
         "支付/老幣",
         "核心大幣"
       ],
-      "price": 1.0308,
-      "bb_midline_1d": 1.08422,
-      "bb_pct": -4.927044,
+      "price": 1.032,
+      "bb_midline_1d": 1.08428,
+      "bb_pct": -4.821633,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -7707,13 +7707,13 @@
       "threshold": {
         "state": "purple",
         "price": 1.08752012,
-        "gap_pct": -5.215547
+        "gap_pct": -5.105204
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": -4.701075,
+        "latest_pct": -4.678681,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -7766,7 +7766,7 @@
         },
         {
           "date": "08/07",
-          "pct": -4.701075,
+          "pct": -4.678681,
           "color": "purple"
         }
       ]
@@ -7777,9 +7777,9 @@
         "DeFi",
         "收益"
       ],
-      "price": 2081.0,
-      "bb_midline_1d": 2080.8,
-      "bb_pct": 0.009612,
+      "price": 2082.0,
+      "bb_midline_1d": 2080.85,
+      "bb_pct": 0.055266,
       "d1_prev": "red",
       "d1_curr": "red",
       "h4_prev": "red",
@@ -7793,13 +7793,13 @@
       "threshold": {
         "state": "purple",
         "price": 2112.80234861,
-        "gap_pct": -1.505221
+        "gap_pct": -1.457891
       },
       "ladder": {
         "state": "red",
         "label": "Reset",
         "latest_color": "purple",
-        "latest_pct": 0.069685,
+        "latest_pct": 0.079295,
         "yellow_run_length": 0,
         "mature": false
       },
@@ -7852,7 +7852,7 @@
         },
         {
           "date": "08/07",
-          "pct": 0.069685,
+          "pct": 0.079295,
           "color": "purple"
         }
       ]
@@ -7863,9 +7863,9 @@
         "隱私幣",
         "PoW"
       ],
-      "price": 505.25,
-      "bb_midline_1d": 496.3565,
-      "bb_pct": 1.791757,
+      "price": 505.88,
+      "bb_midline_1d": 496.388,
+      "bb_pct": 1.912214,
       "d1_prev": "green",
       "d1_curr": "green",
       "h4_prev": "green",
@@ -7879,13 +7879,13 @@
       "threshold": {
         "state": "yellow",
         "price": 498.70266657,
-        "gap_pct": 1.312873
+        "gap_pct": 1.439201
       },
       "ladder": {
         "state": "green",
         "label": "L2+ 延續",
         "latest_color": "yellow",
-        "latest_pct": 1.503657,
+        "latest_pct": 1.528945,
         "yellow_run_length": 6,
         "mature": true
       },
@@ -7938,7 +7938,7 @@
         },
         {
           "date": "08/07",
-          "pct": 1.503657,
+          "pct": 1.528945,
           "color": "yellow"
         }
       ]
