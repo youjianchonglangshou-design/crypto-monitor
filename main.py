@@ -17,7 +17,14 @@ import streamlit as st
 from get import build_snapshot_payload
 from ha_threshold import compute_threshold_from_daily_data
 from pattern_options import PATTERN_SORT_OPTIONS
-from scoring_rules import build_long_opportunity, build_pattern_flags, classify_pattern, score_hint
+from scoring_rules import (
+    OPPORTUNITY_ENGINE_VERSION,
+    PURPLE2_RULE_VERSION,
+    build_long_opportunity,
+    build_pattern_flags,
+    classify_pattern,
+    score_hint,
+)
 from sector_config import get_sector_badge
 from symbols_config import SYMBOLS_CONFIG
 
@@ -938,14 +945,18 @@ column_1, column_2, column_3, column_4 = st.columns([0.48, 0.22, 0.14, 0.16])
 
 with column_1:
     st.markdown(
-        "<div class='cyber-title'>"
+        "<div class='cyber-title' style='display:flex;align-items:center;gap:10px;flex-wrap:wrap'>"
         "Heikin-Ashi Ladder Pattern Scoring Engine"
+        f"<span style='font-size:10px;line-height:1;padding:5px 8px;border:1px solid #22d3ee;"
+        f"border-radius:999px;color:#67e8f9;background:rgba(34,211,238,.08);letter-spacing:.5px'>"
+        f"{html.escape(OPPORTUNITY_ENGINE_VERSION)}</span>"
         "</div>",
         unsafe_allow_html=True,
     )
     st.markdown(
         "<div class='cyber-subtitle'>"
-        f"STREAMLIT CLOUD | UPDATED: {datetime.now(TW_TZ):%H:%M:%S} (TWN)"
+        f"STREAMLIT CLOUD | UPDATED: {datetime.now(TW_TZ):%H:%M:%S} (TWN) | "
+        f"ENGINE: {html.escape(OPPORTUNITY_ENGINE_VERSION)}"
         "</div>",
         unsafe_allow_html=True,
     )
@@ -1098,6 +1109,7 @@ download_slot.download_button(
 
 st.markdown("### 📈 做多機會掃描｜20 日 HA 階梯 + BB 幾何")
 st.caption(
+    f"版本：{OPPORTUNITY_ENGINE_VERSION}｜Purple-2：{PURPLE2_RULE_VERSION}｜"
     f"目前顯示 {len(plot_results)} / {len(annotated)} 張圖；"
     f"下載的 snapshot_ai.json 仍包含完整 {len(annotated)} 個幣種。"
 )
@@ -1242,7 +1254,11 @@ for index, record in enumerate(plot_results):
                 figure.add_annotation(
                     x=x_values[ref_idx],
                     y=float(purple2_price),
-                    text="P2",
+                    text=(
+                        "P2-R"
+                        if ((opp.get("purple_structure") or {}).get("anchor_source") == "active_right_v")
+                        else "P2-L"
+                    ),
                     showarrow=False,
                     xanchor="left",
                     yanchor="bottom",

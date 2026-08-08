@@ -11,11 +11,18 @@ import numpy as np
 import pandas as pd
 
 from github_sync import sync_snapshot_to_github
-from scoring_rules import build_long_opportunity, build_pattern_flags, classify_pattern, score_hint
+from scoring_rules import (
+    OPPORTUNITY_ENGINE_VERSION,
+    PURPLE2_RULE_VERSION,
+    build_long_opportunity,
+    build_pattern_flags,
+    classify_pattern,
+    score_hint,
+)
 from sector_config import SECTOR_TAGS
 
 TW_TZ = timezone(timedelta(hours=8))
-SCHEMA_VERSION = "crypto-monitor-ai-v4-dynamic-purple2"
+SCHEMA_VERSION = "crypto-monitor-ai-v5-opportunity-geometry-dp2-fib"
 GROUP_LIMIT = 20
 
 CHART_SEMANTICS = {
@@ -44,7 +51,9 @@ CHART_SEMANTICS = {
         "midline_regime": "rising / flat / flattening / falling from recent 5d midline slope; rising threshold is intentionally sensitive to visual upward tilt",
         "near_midline": "adaptive by BB band position around 0.5, not a fixed +/- price percentage",
         "breakout": "requires a real below-to-above midline crossing (or left-censored evidence when the 20d window starts already above) plus a meaningful upper-half push; deep breakdown invalidates the old wave",
-        "dynamic_purple2": "split purple runs into V structures; compare left low -> yellow swing high -> right low with Fibonacci retracement. Right V needs its own Purple-2; <=0.618 retracement can reset to the higher right V, >0.618 keeps the left V, new lower low resets right when eligible",
+        "dynamic_purple2": "v3: compare the ACTIVE right purple V directly against the lowest eligible structural left V in the 20d window. Right V must have its own Purple-2; Fib retracement <=0.618 resets to right Higher-Low, >0.618 keeps left Double-V anchor, new lower low resets right when eligible",
+        "engine_version": OPPORTUNITY_ENGINE_VERSION,
+        "purple2_rule_version": PURPLE2_RULE_VERSION,
         "one_star_note": "one star is not failure; it can mean mature expansion / do-not-chase or otherwise poor long entry timing",
     },
 }
@@ -629,6 +638,8 @@ def build_snapshot_payload(
             "generated_at_taiwan": generated_time,
             "snapshot_hash": _snapshot_hash(selection, records),
             "schema_version": SCHEMA_VERSION,
+            "engine_version": OPPORTUNITY_ENGINE_VERSION,
+            "purple2_rule_version": PURPLE2_RULE_VERSION,
             "count": len(records),
             "selection": selection,
             "sort_option": sort_option,

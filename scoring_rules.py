@@ -262,7 +262,13 @@ def score_hint(flags: dict, item: dict) -> int:
     elif gg: score += 8
     return min(75, int(score))
 
-# ==================== Opportunity Geometry（做多機會掃描 v2） ====================
+# ==================== Opportunity Geometry（做多機會掃描 v3） ====================
+# 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
+# v3：Purple-2 採 Active Right-V vs 20日左側結構V + Fib 0.618；不再逐段鏈式切換。
+
+OPPORTUNITY_ENGINE_VERSION = "OG v3.0｜DP2-FIB-0.618"
+PURPLE2_RULE_VERSION = "DP2-v3-active-right-vs-structural-left"
+
 # 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
 # v2 重點：自適應中軌距離、真正中軌突破事件、Dynamic Purple-2 Anchor（V/V + Fib）。
 
@@ -480,141 +486,169 @@ def _point_ref(points: list[dict[str, Any]], idx: int | None) -> dict[str, Any] 
 
 
 def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
-    """Dynamic Purple-2 Anchor。
+    """Dynamic Purple-2 v3：只比較「目前右V」與「左側結構V」。
 
-    規則：
-    1) 以連續紫色 run 拆成 V。
-    2) 右 V 只有一階，沒有自己的紫2 -> 沿用左側有效紫2。
-    3) 右 V 破左 V -> 新 Lower Low，若有紫2就切到右 V。
-    4) 右 V 抬高：用左低 L -> 中間最高黃 H -> 右低 R 的 Fib 回撤。
-       回撤 <= 0.618 視為已建立新的 Higher Low 價格層，切右 V；
-       回撤 > 0.618 視為仍在原底部/雙V範圍，沿用左 V。
+    肉眼規則機械化：
+    1) 固定使用畫面同一組 20 根 HA。
+    2) 目前/最新黃 run 前一段紫 run = Active Right-V。
+    3) Active Right-V 之前，找「最低且本身有 Purple-2」的紫 run 當 Structural Left-V。
+       （另保留全20根 structural_low 供 HL/LL 判斷。）
+    4) Right-V 若沒有自己的 Purple-2（最低紫之前不是紫；常見於只有1階紫，
+       或最低紫剛好是該 run 第一階），不能硬創 P2，沿用 Left-V。
+    5) Right low <= Left low：新 Lower Low；若 Right 有 P2，Anchor 切 Right。
+    6) Right low > Left low：用 Left low L -> 兩V之間最高黃 H -> Right low R 計算
+       Fib retracement = (H-R)/(H-L)。
+       - retracement <= 0.618：右V已建立明顯 Higher Low 價格層，且有自己的 P2 -> 切 Right。
+       - retracement > 0.618：右V回得太深，仍視為原雙V/同底結構 -> 沿用 Left。
+    7) Purple-2 永遠是「被選中V的最低紫之前那一階紫」，不是最低紫之後的紫。
+
+    這樣同時處理：W/雙V、咖啡杯 Higher-Low、右V只有一階紫，以及 LINK 類深回撤。
     """
     runs = _purple_runs(points)
     active_id = _active_purple_run_id(points, runs)
     if not runs or active_id is None:
         return {
+            "engine_rule": PURPLE2_RULE_VERSION,
             "active_purple2": None,
             "anchor_reason": "no_purple_run",
             "anchor_source": "none",
             "fib_retracement": None,
         }
 
-    active_runs = [r for r in runs if int(r["run_id"]) <= active_id]
+    active_run = next((r for r in runs if int(r["run_id"]) == int(active_id)), runs[-1])
+    active_idx = int(active_run["run_id"])
+    prior_runs = [r for r in runs if int(r["run_id"]) < active_idx]
+
     all_purple_indices = [i for i, p in enumerate(points) if p.get("color") == "purple"]
-    structural_low_idx = min(all_purple_indices, key=lambda j: (_f(points[j].get("close")), j)) if all_purple_indices else None
+    structural_low_idx = (
+        min(all_purple_indices, key=lambda j: (_f(points[j].get("close")), j))
+        if all_purple_indices else None
+    )
 
-    anchor_low_run = active_runs[0]
-    ref_run = anchor_low_run if anchor_low_run.get("eligible_purple2") else None
-    decisions: dict[int, dict[str, Any]] = {}
+    # 左側 P2 必須是真正可定義的：最低紫前一日也是紫。
+    eligible_left_runs = [r for r in prior_runs if r.get("eligible_purple2")]
+    left_run = (
+        min(eligible_left_runs, key=lambda r: (_f(r.get("low_price")), int(r.get("low_idx", 0))))
+        if eligible_left_runs else None
+    )
 
-    for cand in active_runs[1:]:
-        prev_anchor = anchor_low_run
-        bridge_points = points[int(prev_anchor["low_idx"])+1:int(cand["start"])]
-        yellow_bridge = [p for p in bridge_points if p.get("color") == "yellow"]
-        bridge_high = max((_f(p.get("close")) for p in yellow_bridge), default=None)
-        bridge_high_idx = None
-        if yellow_bridge:
-            candidates = [i for i in range(int(prev_anchor["low_idx"])+1, int(cand["start"])) if points[i].get("color") == "yellow"]
-            if candidates:
-                bridge_high_idx = max(candidates, key=lambda i: _f(points[i].get("close")))
-
-        left_low = _f(prev_anchor.get("low_price"))
-        right_low = _f(cand.get("low_price"))
-        fib = None
-        relation = "same_basin"
-        reason = "deep_retracement_keep_left"
-        switched = False
-
-        if right_low <= left_low:
-            relation = "lower_low"
-            anchor_low_run = cand
-            if cand.get("eligible_purple2"):
-                ref_run = cand
-                switched = True
-                reason = "right_v_new_lower_low"
-            else:
-                reason = "right_v_new_lower_low_but_no_purple2_fallback_left"
-        elif bridge_high is not None and bridge_high > left_low + 1e-18:
-            fib = (bridge_high - right_low) / (bridge_high - left_low)
-            if cand.get("eligible_purple2") and fib <= FIB_RIGHT_V_RESET_MAX:
-                relation = "higher_low_reset"
-                anchor_low_run = cand
-                ref_run = cand
-                switched = True
-                reason = "right_v_higher_low_above_fib_0618"
-            elif not cand.get("eligible_purple2"):
-                relation = "higher_low_insufficient_purple"
-                reason = "right_v_insufficient_purple_fallback_left"
-            else:
-                relation = "same_basin_deep_retrace"
-                reason = "right_v_below_fib_0618_keep_left"
-        else:
-            if not cand.get("eligible_purple2"):
-                relation = "insufficient_bridge_or_purple"
-                reason = "right_v_insufficient_purple_fallback_left"
-            else:
-                relation = "no_valid_yellow_bridge"
-                reason = "no_valid_bridge_keep_left"
-
-        decisions[int(cand["run_id"])] = {
-            "left_run_id": int(prev_anchor["run_id"]),
-            "right_run_id": int(cand["run_id"]),
-            "left_low_price": _round(left_low, 10),
-            "right_low_price": _round(right_low, 10),
-            "bridge_yellow_days": len(yellow_bridge),
-            "bridge_high_price": _round(bridge_high, 10) if bridge_high is not None else None,
-            "bridge_high_index": bridge_high_idx,
-            "fib_retracement": _round(fib, 6) if fib is not None else None,
-            "relation": relation,
-            "switched_anchor": switched,
-            "reason": reason,
+    # 若沒有左側可用 V，只有目前右V：右V有P2就用右，否則無P2。
+    if left_run is None:
+        chosen = active_run if active_run.get("eligible_purple2") else None
+        p2_idx = int(chosen["purple2_idx"]) if chosen and chosen.get("purple2_idx") is not None else None
+        p2 = _point_ref(points, p2_idx)
+        if p2 and chosen:
+            p2.update({
+                "reference_quality": "dynamic_purple2_v3",
+                "purple_run_length": int(chosen.get("length", 0)),
+                "anchor_run_id": int(chosen.get("run_id", -1)),
+            })
+        return {
+            "engine_rule": PURPLE2_RULE_VERSION,
+            "structural_low": _point_ref(points, structural_low_idx),
+            "left_structural_v_low": None,
+            "active_swing_low": _point_ref(points, int(active_run.get("low_idx", 0))),
+            "anchor_low": _point_ref(points, int(active_run.get("low_idx", 0))) if chosen else None,
+            "active_purple2": p2,
+            "anchor_source": "active_right_v" if chosen else "none",
+            "anchor_reason": "only_right_v_available" if chosen else "right_v_has_no_own_purple2",
+            "active_right_run_id": active_idx,
+            "active_right_purple_count": int(active_run.get("length", 0)),
+            "active_right_has_own_purple2": bool(active_run.get("eligible_purple2")),
+            "low_relation": "single_v_structure",
+            "fib_retracement": None,
+            "fib_zone": "unavailable",
+            "fib_threshold": FIB_RIGHT_V_RESET_MAX,
+            "bridge_yellow_days": 0,
+            "bridge_high_price": None,
+            "all_purple_runs": [
+                {
+                    "run_id": int(x["run_id"]), "start": int(x["start"]), "end": int(x["end"]),
+                    "length": int(x["length"]), "low": _point_ref(points, int(x["low_idx"])),
+                    "purple2": _point_ref(points, x.get("purple2_idx")),
+                } for x in runs if int(x["run_id"]) <= active_idx
+            ],
         }
 
-    active_run = next((r for r in active_runs if int(r["run_id"]) == active_id), active_runs[-1])
-    active_decision = decisions.get(active_id, {})
-    p2_idx = int(ref_run["purple2_idx"]) if ref_run and ref_run.get("purple2_idx") is not None else None
+    left_low = _f(left_run.get("low_price"))
+    right_low = _f(active_run.get("low_price"))
+    bridge_indices = [
+        i for i in range(int(left_run["low_idx"]) + 1, int(active_run["start"]))
+        if points[i].get("color") == "yellow"
+    ]
+    bridge_high_idx = max(bridge_indices, key=lambda i: _f(points[i].get("close"))) if bridge_indices else None
+    bridge_high = _f(points[bridge_high_idx].get("close")) if bridge_high_idx is not None else None
+
+    fib = None
+    if bridge_high is not None and bridge_high > left_low + 1e-18:
+        fib = (bridge_high - right_low) / (bridge_high - left_low)
+
+    chosen = left_run
+    relation = "same_basin"
+    reason = "keep_left_default"
+
+    if not active_run.get("eligible_purple2"):
+        # 最重要的 fallback：右V沒有「最低紫前一階紫」，不管抬多高都不能硬造P2。
+        relation = "right_v_no_own_purple2"
+        reason = "right_v_has_no_own_purple2_fallback_left"
+    elif right_low <= left_low:
+        chosen = active_run
+        relation = "lower_low"
+        reason = "right_v_new_lower_low_reset_right"
+    elif fib is None:
+        relation = "no_valid_bridge"
+        reason = "no_valid_yellow_bridge_keep_left"
+    elif fib <= FIB_RIGHT_V_RESET_MAX:
+        chosen = active_run
+        relation = "higher_low_reset"
+        reason = "right_v_higher_low_fib_le_0618_reset_right"
+    else:
+        relation = "same_basin_deep_retrace"
+        reason = "right_v_retrace_gt_0618_keep_left"
+
+    p2_idx = int(chosen["purple2_idx"]) if chosen.get("purple2_idx") is not None else None
     p2 = _point_ref(points, p2_idx)
     if p2:
         p2.update({
-            "reference_quality": "dynamic_purple2",
-            "purple_run_length": int(ref_run.get("length", 0)),
-            "anchor_run_id": int(ref_run.get("run_id", -1)),
+            "reference_quality": "dynamic_purple2_v3",
+            "purple_run_length": int(chosen.get("length", 0)),
+            "anchor_run_id": int(chosen.get("run_id", -1)),
         })
 
-    fib_value = active_decision.get("fib_retracement")
-    if fib_value is None:
+    if fib is None:
         fib_zone = "unavailable"
-    elif fib_value < 0:
+    elif fib < 0:
         fib_zone = "above_swing_high"
-    elif fib_value < 0.5:
+    elif fib < 0.5:
         fib_zone = "shallow_lt_0_5"
-    elif fib_value <= 0.618:
+    elif fib <= 0.618:
         fib_zone = "golden_0_5_0_618"
     else:
         fib_zone = "deep_gt_0_618"
 
-    anchor_source = "active_right_v" if ref_run and int(ref_run.get("run_id", -1)) == active_id else "prior_left_v"
-    anchor_reason = active_decision.get("reason") or (
-        "first_available_purple_anchor" if ref_run else "no_valid_purple2"
-    )
+    anchor_source = "active_right_v" if int(chosen.get("run_id", -1)) == active_idx else "prior_left_v"
 
     return {
+        "engine_rule": PURPLE2_RULE_VERSION,
         "structural_low": _point_ref(points, structural_low_idx),
+        "left_structural_v_low": _point_ref(points, int(left_run.get("low_idx", 0))),
         "active_swing_low": _point_ref(points, int(active_run.get("low_idx", 0))),
-        "anchor_low": _point_ref(points, int(anchor_low_run.get("low_idx", 0))),
+        "anchor_low": _point_ref(points, int(chosen.get("low_idx", 0))),
         "active_purple2": p2,
         "anchor_source": anchor_source,
-        "anchor_reason": anchor_reason,
-        "active_right_run_id": int(active_id),
+        "anchor_reason": reason,
+        "active_right_run_id": active_idx,
         "active_right_purple_count": int(active_run.get("length", 0)),
         "active_right_has_own_purple2": bool(active_run.get("eligible_purple2")),
-        "low_relation": active_decision.get("relation", "first_or_single_structure"),
-        "fib_retracement": fib_value,
+        "low_relation": relation,
+        "fib_retracement": _round(fib, 6) if fib is not None else None,
         "fib_zone": fib_zone,
         "fib_threshold": FIB_RIGHT_V_RESET_MAX,
-        "bridge_yellow_days": int(active_decision.get("bridge_yellow_days", 0) or 0),
-        "bridge_high_price": active_decision.get("bridge_high_price"),
+        "bridge_yellow_days": len(bridge_indices),
+        "bridge_high_price": _round(bridge_high, 10) if bridge_high is not None else None,
+        "bridge_high_index": bridge_high_idx,
+        "left_run_id": int(left_run.get("run_id", -1)),
+        "right_run_id": active_idx,
         "all_purple_runs": [
             {
                 "run_id": int(x["run_id"]),
@@ -624,10 +658,9 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
                 "low": _point_ref(points, int(x["low_idx"])),
                 "purple2": _point_ref(points, x.get("purple2_idx")),
             }
-            for x in active_runs
+            for x in runs if int(x["run_id"]) <= active_idx
         ],
     }
-
 
 def _breakout_context(points: list[dict[str, Any]]) -> dict[str, Any]:
     """找真正的『由中軌下穿到中軌上』波段；若 20 日左緣已在上方，允許 left-censored 推定。"""
