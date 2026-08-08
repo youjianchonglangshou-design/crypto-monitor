@@ -36,8 +36,8 @@ def serialize_snapshot_json(snapshot: dict[str, Any]) -> str:
         indent=2,
     )
 
-    # 在四個頂層區塊之間再加一個空白行，GitHub 頁面更容易辨識。
-    for key in ("breadth", "groups", "records"):
+    # 在主要頂層區塊之間再加一個空白行，GitHub 頁面更容易辨識。
+    for key in ("chart_semantics", "breadth", "groups", "records"):
         text = text.replace(
             f'\n  "{key}":',
             f'\n\n  "{key}":',
@@ -55,6 +55,7 @@ def _stable_snapshot_digest(snapshot: dict[str, Any]) -> str:
         "json_format": batch.get("json_format"),
         "selection": batch.get("selection"),
         "count": batch.get("count"),
+        "chart_semantics": snapshot.get("chart_semantics"),
         "breadth": snapshot.get("breadth"),
         "groups": snapshot.get("groups"),
         "records": snapshot.get("records"),
@@ -91,6 +92,7 @@ def _is_readable_multiline_snapshot(text: str) -> bool:
 
     required_markers = (
         '\n  "batch":',
+        '\n  "chart_semantics":',
         '\n  "breadth":',
         '\n  "groups":',
         '\n  "records":',

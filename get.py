@@ -1,4 +1,4 @@
-"""建立供 ChatGPT 分析使用的精簡 snapshot_ai.json。"""
+"""建立供 ChatGPT 分析使用的 20 日視覺等價 snapshot_ai.json。"""
 from __future__ import annotations
 
 import hashlib
@@ -15,8 +15,27 @@ from scoring_rules import build_pattern_flags, classify_pattern, score_hint
 from sector_config import SECTOR_TAGS
 
 TW_TZ = timezone(timedelta(hours=8))
-SCHEMA_VERSION = "crypto-monitor-ai-v1"
+SCHEMA_VERSION = "crypto-monitor-ai-v2-visual20d"
 GROUP_LIMIT = 20
+
+CHART_SEMANTICS = {
+    "window_days": 20,
+    "source": "same_20_daily_points_used_by_streamlit_chart",
+    "price_axis": "actual_price",
+    "bb_formula": "ordinary_daily_close_SMA20_plus_minus_2_population_std",
+    "ha_ladder": "daily_heikin_ashi_open_close; yellow=close>open, purple=close<open",
+    "ha_vs_midline_pct": "(HA_close-BB_midline)/BB_midline*100",
+    "band_width_pct": "(BB_upper-BB_lower)/abs(BB_midline)*100",
+    "ha_band_position": "0=lower_band, 0.5=band_center, 1=upper_band; values may be <0 or >1",
+    "visual_summary": {
+        "recent_5d": "short-term visual geometry",
+        "full_20d": "whole displayed chart geometry",
+        "midline_direction": "rising/falling/flat",
+        "bandwidth_state": "expanding/contracting/stable",
+        "expansion_direction": "upward/downward/two_sided/contracting/none",
+        "note": "raw chart_20d remains authoritative; summary labels are mechanical aids for AI",
+    },
+}
 
 _EMOJI_COLOR = {
     "🟢": "green",
@@ -90,12 +109,276 @@ def _build_ladder_history(record: dict[str, Any]) -> list[dict[str, Any]]:
     return history
 
 
+def _pct_change(start: Any, end: Any) -> Optional[float]:
+    start_value = _safe_float(start)
+    end_value = _safe_float(end)
+    if start_value is None or end_value is None or abs(start_value) < 1e-18:
+        return None
+    return (end_value - start_value) / abs(start_value) * 100.0
+
+
+def _trend_metrics(values: list[Any], lookback: int) -> dict[str, Any]:
+    cleaned = [_safe_float(value) for value in values]
+    cleaned = [value for value in cleaned if value is not None]
+    if not cleaned:
+        return {
+            "days": 0,
+            "direction": "unknown",
+            "change_pct": None,
+            "slope_pct_per_day": None,
+        }
+
+    window = cleaned[-min(max(2, lookback), len(cleaned)) :]
+    if len(window) < 2:
+        return {
+            "days": len(window),
+            "direction": "flat",
+            "change_pct": 0.0,
+            "slope_pct_per_day": 0.0,
+        }
+
+    change_pct = _pct_change(window[0], window[-1])
+    base = abs(float(np.mean(window)))
+    if base < 1e-18:
+        slope_pct_per_day = 0.0
+    else:
+        x = np.arange(len(window), dtype=float)
+        slope = float(np.polyfit(x, np.asarray(window, dtype=float), 1)[0])
+        slope_pct_per_day = slope / base * 100.0
+
+    # 約 0.05%/日以下視為肉眼上的平緩；5 日約 ±0.25%，20 日約 ±0.95%。
+    flat_threshold = max(0.25, 0.05 * (len(window) - 1))
+    if change_pct is None or abs(change_pct) <= flat_threshold:
+        direction = "flat"
+    elif change_pct > 0:
+        direction = "rising"
+    else:
+        direction = "falling"
+
+    return {
+        "days": len(window),
+        "direction": direction,
+        "change_pct": _round(change_pct, 6),
+        "slope_pct_per_day": _round(slope_pct_per_day, 6),
+    }
+
+
+def _bandwidth_metrics(widths: list[Any], lookback: int) -> dict[str, Any]:
+    cleaned = [_safe_float(value) for value in widths]
+    cleaned = [value for value in cleaned if value is not None]
+    if not cleaned:
+        return {
+            "days": 0,
+            "state": "unknown",
+            "start_pct": None,
+            "end_pct": None,
+            "change_points": None,
+            "relative_change_pct": None,
+        }
+
+    window = cleaned[-min(max(2, lookback), len(cleaned)) :]
+    start = window[0]
+    end = window[-1]
+    change_points = end - start
+    relative_change = _pct_change(start, end)
+
+    # 寬度相對改變 5% 以上才視為明確擴張／收縮，避免每日雜訊被誤判。
+    if relative_change is None or abs(relative_change) < 5.0:
+        state = "stable"
+    elif relative_change > 0:
+        state = "expanding"
+    else:
+        state = "contracting"
+
+    return {
+        "days": len(window),
+        "state": state,
+        "start_pct": _round(start, 6),
+        "end_pct": _round(end, 6),
+        "change_points": _round(change_points, 6),
+        "relative_change_pct": _round(relative_change, 6),
+    }
+
+
+def _build_chart_20d(record: dict[str, Any]) -> list[dict[str, Any]]:
+    opens = list(record.get("_ha_opens_last20") or [])
+    closes = list(record.get("_ha_closes_last20") or [])
+    times = list(record.get("_ha_times_last20") or [])
+    midlines = list(record.get("_bb_basis_series") or [])
+    uppers = list(record.get("_bb_upper_series") or [])
+    lowers = list(record.get("_bb_lower_series") or [])
+    percentages = list(record.get("_ha_pct_series") or [])
+
+    count = min(
+        20,
+        len(opens),
+        len(closes),
+        len(times),
+        len(midlines),
+        len(uppers),
+        len(lowers),
+    )
+    if count <= 0:
+        return []
+
+    opens = opens[-count:]
+    closes = closes[-count:]
+    times = times[-count:]
+    midlines = midlines[-count:]
+    uppers = uppers[-count:]
+    lowers = lowers[-count:]
+    percentages = percentages[-count:] if percentages else []
+
+    output: list[dict[str, Any]] = []
+    for index in range(count):
+        ha_open = _safe_float(opens[index])
+        ha_close = _safe_float(closes[index])
+        midline = _safe_float(midlines[index])
+        upper = _safe_float(uppers[index])
+        lower = _safe_float(lowers[index])
+
+        ha_vs_midline = (
+            _safe_float(percentages[index])
+            if index < len(percentages)
+            else None
+        )
+        if ha_vs_midline is None and ha_close is not None and midline:
+            ha_vs_midline = (ha_close - midline) / midline * 100.0
+
+        bandwidth_pct = None
+        band_position = None
+        if (
+            upper is not None
+            and lower is not None
+            and midline is not None
+            and abs(midline) > 1e-18
+        ):
+            bandwidth_pct = (upper - lower) / abs(midline) * 100.0
+        if (
+            ha_close is not None
+            and upper is not None
+            and lower is not None
+            and abs(upper - lower) > 1e-18
+        ):
+            # 0=下軌、0.5=通道中心附近、1=上軌；可小於0或大於1。
+            band_position = (ha_close - lower) / (upper - lower)
+
+        output.append(
+            {
+                "date": _format_date(times[index], index),
+                "ha_open": _round(ha_open),
+                "ha_close": _round(ha_close),
+                "ha_color": _ha_step_color(ha_open, ha_close),
+                "bb_upper": _round(upper),
+                "bb_midline": _round(midline),
+                "bb_lower": _round(lower),
+                "ha_vs_midline_pct": _round(ha_vs_midline, 6),
+                "band_width_pct": _round(bandwidth_pct, 6),
+                "ha_band_position": _round(band_position, 6),
+            }
+        )
+    return output
+
+
+def _position_zone(point: dict[str, Any]) -> str:
+    position = _safe_float(point.get("ha_band_position"))
+    pct = _safe_float(point.get("ha_vs_midline_pct"))
+    if position is None:
+        return "unknown"
+    if position > 1:
+        return "above_upper"
+    if position >= 0.75:
+        return "upper_quarter"
+    if pct is not None and pct >= 0:
+        return "above_midline"
+    if position <= 0:
+        return "below_lower"
+    if position <= 0.25:
+        return "lower_quarter"
+    return "below_midline"
+
+
+def _visual_window_summary(chart: list[dict[str, Any]], days: int) -> dict[str, Any]:
+    if not chart:
+        return {"days": 0, "channel": {"state": "unknown", "direction": "unknown"}}
+
+    window = chart[-min(days, len(chart)) :]
+    midlines = [point.get("bb_midline") for point in window]
+    uppers = [point.get("bb_upper") for point in window]
+    lowers = [point.get("bb_lower") for point in window]
+    ha_closes = [point.get("ha_close") for point in window]
+    widths = [point.get("band_width_pct") for point in window]
+
+    midline = _trend_metrics(midlines, len(window))
+    upper = _trend_metrics(uppers, len(window))
+    lower = _trend_metrics(lowers, len(window))
+    ha = _trend_metrics(ha_closes, len(window))
+    bandwidth = _bandwidth_metrics(widths, len(window))
+
+    state = bandwidth.get("state", "unknown")
+    if state == "expanding":
+        if midline.get("direction") == "rising":
+            expansion_direction = "upward"
+        elif midline.get("direction") == "falling":
+            expansion_direction = "downward"
+        else:
+            expansion_direction = "two_sided"
+    elif state == "contracting":
+        expansion_direction = "contracting"
+    elif state == "stable":
+        expansion_direction = "none"
+    else:
+        expansion_direction = "unknown"
+
+    return {
+        "days": len(window),
+        "midline": midline,
+        "upper_band": upper,
+        "lower_band": lower,
+        "ha_ladder": ha,
+        "bandwidth": bandwidth,
+        "channel": {
+            "state": state,
+            "direction": midline.get("direction", "unknown"),
+            "expansion_direction": expansion_direction,
+            "upper_change_pct": upper.get("change_pct"),
+            "lower_change_pct": lower.get("change_pct"),
+            "midline_change_pct": midline.get("change_pct"),
+        },
+    }
+
+
+def _build_visual_summary(chart: list[dict[str, Any]]) -> dict[str, Any]:
+    if not chart:
+        return {
+            "recent_5d": _visual_window_summary([], 5),
+            "full_20d": _visual_window_summary([], 20),
+            "latest": {},
+        }
+
+    latest = chart[-1]
+    return {
+        "recent_5d": _visual_window_summary(chart, 5),
+        "full_20d": _visual_window_summary(chart, 20),
+        "latest": {
+            "date": latest.get("date"),
+            "ha_color": latest.get("ha_color"),
+            "ha_vs_midline_pct": latest.get("ha_vs_midline_pct"),
+            "ha_band_position": latest.get("ha_band_position"),
+            "position_zone": _position_zone(latest),
+            "band_width_pct": latest.get("band_width_pct"),
+        },
+    }
+
+
 def _four_h_pair(previous: str, current: str) -> str:
     return f"{_color_name(previous)}_{_color_name(current)}"
 
 
 def _compact_record(source: dict[str, Any]) -> dict[str, Any]:
     history = _build_ladder_history(source)
+    chart_20d = _build_chart_20d(source)
+    visual_summary = _build_visual_summary(chart_20d)
     flag_history = [
         {
             "date": item["date"],
@@ -166,7 +449,12 @@ def _compact_record(source: dict[str, Any]) -> dict[str, Any]:
             "four_h_trigger": h4_pair,
         },
         "score": int(score or 0),
+        # 舊欄位保留，避免既有 AI prompt / 外部工具中斷。
         "ladder_tail": history[-8:],
+        # 20 日視覺等價資料：與 Streamlit 圖表使用完全相同的 HA + BB 序列。
+        "chart_20d": chart_20d,
+        # 直接把人眼會判斷的斜率、擴張/收縮、方向先機械化給 AI。
+        "visual_summary": visual_summary,
     }
 
 
@@ -381,6 +669,7 @@ def build_snapshot_payload(
             "selection": selection,
             "sort_option": sort_option,
         },
+        "chart_semantics": CHART_SEMANTICS,
         "breadth": _build_breadth(records),
         "groups": _build_groups(records),
         "records": records,
