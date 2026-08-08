@@ -19,7 +19,7 @@ from ha_threshold import compute_threshold_from_daily_data
 from pattern_options import PATTERN_SORT_OPTIONS
 import scoring_rules as _scoring_engine
 
-EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.1-dp2-fib"
+EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.2-dp2-struct-fib"
 ENGINE_API_VERSION = getattr(_scoring_engine, "ENGINE_API_VERSION", "legacy-or-missing")
 OPPORTUNITY_ENGINE_VERSION = getattr(_scoring_engine, "OPPORTUNITY_ENGINE_VERSION", "ENGINE-MISMATCH")
 PURPLE2_RULE_VERSION = getattr(_scoring_engine, "PURPLE2_RULE_VERSION", "P2-MISMATCH")
@@ -45,7 +45,7 @@ st.set_page_config(
 
 if not ENGINE_FILES_SYNCED:
     st.error(
-        "⚠️ 引擎檔版本不同步｜UI 預期 OG v3.1，但 scoring_rules.py 是："
+        "⚠️ 引擎檔版本不同步｜UI 預期 OG v3.2，但 scoring_rules.py 是："
         f"{ENGINE_API_VERSION}。請同時覆蓋 main.py、scoring_rules.py、get.py、pattern_options.py。"
     )
     st.code(
@@ -847,8 +847,11 @@ def geometry_badges(record: dict[str, Any]) -> str:
     p2 = opp.get("purple2_reference") or {}
     pstruct = opp.get("purple_structure") or {}
     gap = p2.get("current_gap_price_pct")
-    anchor = pstruct.get("anchor_source")
-    anchor_text = "右V" if anchor == "active_right_v" else "左V" if anchor == "prior_left_v" else ""
+    anchor_side = pstruct.get("anchor_side")
+    if anchor_side not in {"L", "R"}:
+        anchor = pstruct.get("anchor_source")
+        anchor_side = "R" if anchor == "active_right_v" else "L" if anchor in {"prior_left_v", "active_left_v"} else None
+    anchor_text = "右V" if anchor_side == "R" else "左V" if anchor_side == "L" else ""
     p2_text = "Purple-2 —" if gap is None else f"Purple-2{anchor_text} {float(gap):+.2f}%"
     fib = pstruct.get("fib_retracement")
     fib_text = "" if fib is None else f"｜Fib {float(fib):.3f}"
@@ -1275,7 +1278,7 @@ for index, record in enumerate(plot_results):
                     y=float(purple2_price),
                     text=(
                         "P2-R"
-                        if ((opp.get("purple_structure") or {}).get("anchor_source") == "active_right_v")
+                        if ((opp.get("purple_structure") or {}).get("anchor_side") == "R")
                         else "P2-L"
                     ),
                     showarrow=False,

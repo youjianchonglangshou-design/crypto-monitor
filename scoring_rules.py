@@ -266,9 +266,9 @@ def score_hint(flags: dict, item: dict) -> int:
 # 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
 # v3：Purple-2 採 Active Right-V vs 20日左側結構V + Fib 0.618；不再逐段鏈式切換。
 
-OPPORTUNITY_ENGINE_VERSION = "OG v3.1｜DP2-FIB-0.618"
-PURPLE2_RULE_VERSION = "DP2-v3-active-right-vs-structural-left"
-ENGINE_API_VERSION = "opportunity-geometry-v3.1-dp2-fib"
+OPPORTUNITY_ENGINE_VERSION = "OG v3.2｜DP2-STRUCT-FIB"
+PURPLE2_RULE_VERSION = "DP2-v4-structural-generation-fib"
+ENGINE_API_VERSION = "opportunity-geometry-v3.2-dp2-struct-fib"
 
 # 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
 # v2 重點：自適應中軌距離、真正中軌突破事件、Dynamic Purple-2 Anchor（V/V + Fib）。
@@ -486,31 +486,85 @@ def _point_ref(points: list[dict[str, Any]], idx: int | None) -> dict[str, Any] 
     }
 
 
+STRUCT_UPPER_ZONE_BANDPOS = 0.58
+STRUCT_LOWER_ZONE_BANDPOS = 0.42
+STRUCT_STRONG_UPPER_BANDPOS = 0.72
+
+
+def _has_meaningful_upper_phase(points: list[dict[str, Any]], end_idx: int) -> tuple[bool, int | None]:
+    # 找出 end_idx 之前最後一個有效的中軌上方價格層。
+    if end_idx <= 0:
+        return False, None
+    last_idx = None
+    for i in range(0, min(end_idx, len(points))):
+        bp = _f(points[i].get("band_pos"), 0.5)
+        strong = bp >= STRUCT_STRONG_UPPER_BANDPOS
+        clustered = False
+        if bp >= STRUCT_UPPER_ZONE_BANDPOS:
+            left_ok = i > 0 and _f(points[i-1].get("band_pos"), 0.5) >= STRUCT_UPPER_ZONE_BANDPOS
+            right_ok = i + 1 < end_idx and _f(points[i+1].get("band_pos"), 0.5) >= STRUCT_UPPER_ZONE_BANDPOS
+            clustered = left_ok or right_ok
+        if strong or clustered:
+            last_idx = i
+    return last_idx is not None, last_idx
+
+
+def _structural_generation_start(points: list[dict[str, Any]], active_run: dict[str, Any]) -> dict[str, Any]:
+    # 中軌上方舊 V 若之後深跌到中軌下方，視為新結構世代，active V 重新當 L。
+    low_idx = int(active_run.get("low_idx", 0))
+    low_bp = _f(points[low_idx].get("band_pos"), 0.5)
+    if low_bp > STRUCT_LOWER_ZONE_BANDPOS:
+        return {
+            "start_index": 0,
+            "reset": False,
+            "reason": "active_v_not_materially_below_midline",
+            "upper_phase_index": None,
+            "breakdown_index": None,
+        }
+
+    has_upper, upper_idx = _has_meaningful_upper_phase(points, int(active_run.get("start", low_idx)))
+    if not has_upper or upper_idx is None:
+        return {
+            "start_index": 0,
+            "reset": False,
+            "reason": "no_prior_meaningful_upper_phase",
+            "upper_phase_index": None,
+            "breakdown_index": None,
+        }
+
+    breakdown_idx = None
+    for i in range(upper_idx + 1, low_idx + 1):
+        if _f(points[i].get("band_pos"), 0.5) <= STRUCT_LOWER_ZONE_BANDPOS:
+            breakdown_idx = i
+            break
+
+    if breakdown_idx is None:
+        return {
+            "start_index": 0,
+            "reset": False,
+            "reason": "upper_phase_without_material_breakdown",
+            "upper_phase_index": upper_idx,
+            "breakdown_index": None,
+        }
+
+    return {
+        "start_index": int(breakdown_idx),
+        "reset": True,
+        "reason": "midline_break_resets_new_left_v",
+        "upper_phase_index": int(upper_idx),
+        "breakdown_index": int(breakdown_idx),
+    }
+
+
 def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
-    """Dynamic Purple-2 v3：只比較「目前右V」與「左側結構V」。
-
-    肉眼規則機械化：
-    1) 固定使用畫面同一組 20 根 HA。
-    2) 目前/最新黃 run 前一段紫 run = Active Right-V。
-    3) Active Right-V 之前，找「最低且本身有 Purple-2」的紫 run 當 Structural Left-V。
-       （另保留全20根 structural_low 供 HL/LL 判斷。）
-    4) Right-V 若沒有自己的 Purple-2（最低紫之前不是紫；常見於只有1階紫，
-       或最低紫剛好是該 run 第一階），不能硬創 P2，沿用 Left-V。
-    5) Right low <= Left low：新 Lower Low；若 Right 有 P2，Anchor 切 Right。
-    6) Right low > Left low：用 Left low L -> 兩V之間最高黃 H -> Right low R 計算
-       Fib retracement = (H-R)/(H-L)。
-       - retracement <= 0.618：右V已建立明顯 Higher Low 價格層，且有自己的 P2 -> 切 Right。
-       - retracement > 0.618：右V回得太深，仍視為原雙V/同底結構 -> 沿用 Left。
-    7) Purple-2 永遠是「被選中V的最低紫之前那一階紫」，不是最低紫之後的紫。
-
-    這樣同時處理：W/雙V、咖啡杯 Higher-Low、右V只有一階紫，以及 LINK 類深回撤。
-    """
+    # v4：先確認是否真的存在 L/R 兩個 V，再用 Fib 決定 Purple-2 採哪一側。
     runs = _purple_runs(points)
     active_id = _active_purple_run_id(points, runs)
     if not runs or active_id is None:
         return {
             "engine_rule": PURPLE2_RULE_VERSION,
             "active_purple2": None,
+            "anchor_side": None,
             "anchor_reason": "no_purple_run",
             "anchor_source": "none",
             "fib_retracement": None,
@@ -518,7 +572,6 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
 
     active_run = next((r for r in runs if int(r["run_id"]) == int(active_id)), runs[-1])
     active_idx = int(active_run["run_id"])
-    prior_runs = [r for r in runs if int(r["run_id"]) < active_idx]
 
     all_purple_indices = [i for i, p in enumerate(points) if p.get("color") == "purple"]
     structural_low_idx = (
@@ -526,48 +579,92 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
         if all_purple_indices else None
     )
 
-    # 左側 P2 必須是真正可定義的：最低紫前一日也是紫。
-    eligible_left_runs = [r for r in prior_runs if r.get("eligible_purple2")]
-    left_run = (
-        min(eligible_left_runs, key=lambda r: (_f(r.get("low_price")), int(r.get("low_idx", 0))))
-        if eligible_left_runs else None
-    )
+    # 先用中軌把不屬於同一個底部層級的舊 V 排除。
+    # 關鍵只處理使用者指出的情況：舊 V 的低點明顯在中軌上方，
+    # 目前 active V 的低點已明顯落到中軌下方，兩者不得硬湊成 L/R。
+    active_low_bp = _f(points[int(active_run.get("low_idx", 0))].get("band_pos"), 0.5)
+    prior_runs = [r for r in runs if int(r["run_id"]) < active_idx]
+    prior_eligible = [r for r in prior_runs if r.get("eligible_purple2")]
+    excluded_cross_midline_runs = []
+    eligible_left_runs = []
+    for r0 in prior_eligible:
+        left_bp = _f(points[int(r0.get("low_idx", 0))].get("band_pos"), 0.5)
+        crosses_structural_midline = (
+            left_bp >= STRUCT_UPPER_ZONE_BANDPOS
+            and active_low_bp <= STRUCT_LOWER_ZONE_BANDPOS
+        )
+        if crosses_structural_midline:
+            excluded_cross_midline_runs.append(r0)
+        else:
+            eligible_left_runs.append(r0)
 
-    # 若沒有左側可用 V，只有目前右V：右V有P2就用右，否則無P2。
-    if left_run is None:
-        chosen = active_run if active_run.get("eligible_purple2") else None
-        p2_idx = int(chosen["purple2_idx"]) if chosen and chosen.get("purple2_idx") is not None else None
-        p2 = _point_ref(points, p2_idx)
-        if p2 and chosen:
+    left_run = None
+    if eligible_left_runs:
+        left_run = min(
+            eligible_left_runs,
+            key=lambda r: (_f(r.get("low_price")), int(r.get("low_idx", 0)))
+        )
+
+    zone_reset_applied = bool(prior_eligible and not eligible_left_runs and excluded_cross_midline_runs)
+
+    def _build_p2(chosen: dict[str, Any] | None, quality: str) -> dict[str, Any] | None:
+        if not chosen or chosen.get("purple2_idx") is None:
+            return None
+        p2 = _point_ref(points, int(chosen["purple2_idx"]))
+        if p2:
             p2.update({
-                "reference_quality": "dynamic_purple2_v3",
+                "reference_quality": quality,
                 "purple_run_length": int(chosen.get("length", 0)),
                 "anchor_run_id": int(chosen.get("run_id", -1)),
             })
+        return p2
+
+    # 只有一個有效 V 時，它就是 L；不能因為它是最新一段就標 R。
+    if left_run is None:
+        chosen = active_run if active_run.get("eligible_purple2") else None
+        p2 = _build_p2(chosen, "dynamic_purple2_v4")
+        reason = (
+            "midline_zone_break_active_as_new_left"
+            if zone_reset_applied
+            else "active_is_first_valid_v_in_generation"
+        )
         return {
             "engine_rule": PURPLE2_RULE_VERSION,
             "structural_low": _point_ref(points, structural_low_idx),
-            "left_structural_v_low": None,
+            "left_structural_v_low": _point_ref(points, int(active_run.get("low_idx", 0))),
             "active_swing_low": _point_ref(points, int(active_run.get("low_idx", 0))),
             "anchor_low": _point_ref(points, int(active_run.get("low_idx", 0))) if chosen else None,
             "active_purple2": p2,
-            "anchor_source": "active_right_v" if chosen else "none",
-            "anchor_reason": "only_right_v_available" if chosen else "right_v_has_no_own_purple2",
-            "active_right_run_id": active_idx,
-            "active_right_purple_count": int(active_run.get("length", 0)),
-            "active_right_has_own_purple2": bool(active_run.get("eligible_purple2")),
-            "low_relation": "single_v_structure",
+            "anchor_side": "L" if chosen else None,
+            "anchor_source": "active_left_v" if chosen else "none",
+            "anchor_reason": reason if chosen else "active_left_v_has_no_own_purple2",
+            "active_right_run_id": None,
+            "active_right_purple_count": 0,
+            "active_right_has_own_purple2": False,
+            "low_relation": "single_left_v",
             "fib_retracement": None,
             "fib_zone": "unavailable",
             "fib_threshold": FIB_RIGHT_V_RESET_MAX,
             "bridge_yellow_days": 0,
             "bridge_high_price": None,
+            "left_run_id": int(active_run.get("run_id", -1)),
+            "right_run_id": None,
+            "zone_reset_applied": zone_reset_applied,
+            "excluded_cross_midline_run_ids": [int(x.get("run_id", -1)) for x in excluded_cross_midline_runs],
             "all_purple_runs": [
                 {
-                    "run_id": int(x["run_id"]), "start": int(x["start"]), "end": int(x["end"]),
-                    "length": int(x["length"]), "low": _point_ref(points, int(x["low_idx"])),
+                    "run_id": int(x["run_id"]),
+                    "start": int(x["start"]),
+                    "end": int(x["end"]),
+                    "length": int(x["length"]),
+                    "low": _point_ref(points, int(x["low_idx"])),
                     "purple2": _point_ref(points, x.get("purple2_idx")),
-                } for x in runs if int(x["run_id"]) <= active_idx
+                    "same_midline_zone_candidate": not (
+                        _f(points[int(x.get("low_idx", 0))].get("band_pos"), 0.5) >= STRUCT_UPPER_ZONE_BANDPOS
+                        and active_low_bp <= STRUCT_LOWER_ZONE_BANDPOS
+                    ),
+                }
+                for x in runs if int(x["run_id"]) <= active_idx
             ],
         }
 
@@ -585,36 +682,34 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
         fib = (bridge_high - right_low) / (bridge_high - left_low)
 
     chosen = left_run
+    anchor_side = "L"
     relation = "same_basin"
     reason = "keep_left_default"
 
-    if not active_run.get("eligible_purple2"):
-        # 最重要的 fallback：右V沒有「最低紫前一階紫」，不管抬多高都不能硬造P2。
+    if not bridge_indices:
+        relation = "no_valid_bridge"
+        reason = "no_yellow_bridge_keep_left"
+    elif not active_run.get("eligible_purple2"):
         relation = "right_v_no_own_purple2"
         reason = "right_v_has_no_own_purple2_fallback_left"
     elif right_low <= left_low:
         chosen = active_run
+        anchor_side = "R"
         relation = "lower_low"
-        reason = "right_v_new_lower_low_reset_right"
+        reason = "right_v_new_lower_low_use_right"
     elif fib is None:
-        relation = "no_valid_bridge"
-        reason = "no_valid_yellow_bridge_keep_left"
+        relation = "no_valid_fib"
+        reason = "invalid_fib_keep_left"
     elif fib <= FIB_RIGHT_V_RESET_MAX:
         chosen = active_run
+        anchor_side = "R"
         relation = "higher_low_reset"
-        reason = "right_v_higher_low_fib_le_0618_reset_right"
+        reason = "right_v_higher_low_fib_le_0618_use_right"
     else:
         relation = "same_basin_deep_retrace"
         reason = "right_v_retrace_gt_0618_keep_left"
 
-    p2_idx = int(chosen["purple2_idx"]) if chosen.get("purple2_idx") is not None else None
-    p2 = _point_ref(points, p2_idx)
-    if p2:
-        p2.update({
-            "reference_quality": "dynamic_purple2_v3",
-            "purple_run_length": int(chosen.get("length", 0)),
-            "anchor_run_id": int(chosen.get("run_id", -1)),
-        })
+    p2 = _build_p2(chosen, "dynamic_purple2_v4")
 
     if fib is None:
         fib_zone = "unavailable"
@@ -627,7 +722,7 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
     else:
         fib_zone = "deep_gt_0_618"
 
-    anchor_source = "active_right_v" if int(chosen.get("run_id", -1)) == active_idx else "prior_left_v"
+    anchor_source = "active_right_v" if anchor_side == "R" else "prior_left_v"
 
     return {
         "engine_rule": PURPLE2_RULE_VERSION,
@@ -636,6 +731,7 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
         "active_swing_low": _point_ref(points, int(active_run.get("low_idx", 0))),
         "anchor_low": _point_ref(points, int(chosen.get("low_idx", 0))),
         "active_purple2": p2,
+        "anchor_side": anchor_side,
         "anchor_source": anchor_source,
         "anchor_reason": reason,
         "active_right_run_id": active_idx,
@@ -650,6 +746,8 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
         "bridge_high_index": bridge_high_idx,
         "left_run_id": int(left_run.get("run_id", -1)),
         "right_run_id": active_idx,
+        "zone_reset_applied": zone_reset_applied,
+        "excluded_cross_midline_run_ids": [int(x.get("run_id", -1)) for x in excluded_cross_midline_runs],
         "all_purple_runs": [
             {
                 "run_id": int(x["run_id"]),
@@ -658,6 +756,10 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
                 "length": int(x["length"]),
                 "low": _point_ref(points, int(x["low_idx"])),
                 "purple2": _point_ref(points, x.get("purple2_idx")),
+                "same_midline_zone_candidate": not (
+                    _f(points[int(x.get("low_idx", 0))].get("band_pos"), 0.5) >= STRUCT_UPPER_ZONE_BANDPOS
+                    and active_low_bp <= STRUCT_LOWER_ZONE_BANDPOS
+                ),
             }
             for x in runs if int(x["run_id"]) <= active_idx
         ],

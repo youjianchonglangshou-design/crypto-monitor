@@ -13,7 +13,7 @@ import pandas as pd
 from github_sync import sync_snapshot_to_github
 import scoring_rules as _scoring_engine
 
-EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.1-dp2-fib"
+EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.2-dp2-struct-fib"
 ENGINE_API_VERSION = getattr(_scoring_engine, "ENGINE_API_VERSION", "legacy-or-missing")
 OPPORTUNITY_ENGINE_VERSION = getattr(_scoring_engine, "OPPORTUNITY_ENGINE_VERSION", "ENGINE-MISMATCH")
 PURPLE2_RULE_VERSION = getattr(_scoring_engine, "PURPLE2_RULE_VERSION", "P2-MISMATCH")
@@ -28,7 +28,7 @@ ENGINE_FILES_SYNCED = (
 from sector_config import SECTOR_TAGS
 
 TW_TZ = timezone(timedelta(hours=8))
-SCHEMA_VERSION = "crypto-monitor-ai-v5.1-opportunity-geometry-dp2-fib"
+SCHEMA_VERSION = "crypto-monitor-ai-v5.2-opportunity-geometry-dp2-struct-fib"
 GROUP_LIMIT = 20
 
 CHART_SEMANTICS = {
@@ -57,7 +57,7 @@ CHART_SEMANTICS = {
         "midline_regime": "rising / flat / flattening / falling from recent 5d midline slope; rising threshold is intentionally sensitive to visual upward tilt",
         "near_midline": "adaptive by BB band position around 0.5, not a fixed +/- price percentage",
         "breakout": "requires a real below-to-above midline crossing (or left-censored evidence when the 20d window starts already above) plus a meaningful upper-half push; deep breakdown invalidates the old wave",
-        "dynamic_purple2": "v3: compare the ACTIVE right purple V directly against the lowest eligible structural left V in the 20d window. Right V must have its own Purple-2; Fib retracement <=0.618 resets to right Higher-Low, >0.618 keeps left Double-V anchor, new lower low resets right when eligible",
+        "dynamic_purple2": "v4: first establish whether L/R are truly two separate V structures in the same structural generation. A single purple run is L, not R. A meaningful move from upper-midline regime to materially below the midline resets the active V as a new L. Only then use Fib <=0.618 to allow a Higher-Low right V; deep retrace keeps left V.",
         "engine_version": OPPORTUNITY_ENGINE_VERSION,
         "purple2_rule_version": PURPLE2_RULE_VERSION,
         "one_star_note": "one star is not failure; it can mean mature expansion / do-not-chase or otherwise poor long entry timing",
@@ -596,11 +596,11 @@ def _build_groups(records: list[dict[str, Any]]) -> dict[str, list[str]]:
         ),
         "dynamic_purple2_left_anchor": _ranked_symbols(
             records,
-            lambda r: ((r.get("opportunity_long", {}) or {}).get("purple_structure", {}) or {}).get("anchor_source") == "prior_left_v",
+            lambda r: ((r.get("opportunity_long", {}) or {}).get("purple_structure", {}) or {}).get("anchor_side") == "L",
         ),
         "dynamic_purple2_right_anchor": _ranked_symbols(
             records,
-            lambda r: ((r.get("opportunity_long", {}) or {}).get("purple_structure", {}) or {}).get("anchor_source") == "active_right_v",
+            lambda r: ((r.get("opportunity_long", {}) or {}).get("purple_structure", {}) or {}).get("anchor_side") == "R",
         ),
         "midline_long_friendly": _ranked_symbols(
             records,
