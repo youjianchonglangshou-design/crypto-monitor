@@ -17,7 +17,7 @@ import streamlit as st
 from get import build_snapshot_payload
 from ha_threshold import compute_threshold_from_daily_data
 from pattern_options import PATTERN_SORT_OPTIONS
-from scoring_rules import build_pattern_flags, classify_pattern, score_hint
+from scoring_rules import build_long_opportunity, build_pattern_flags, classify_pattern, score_hint
 from sector_config import get_sector_badge
 from symbols_config import SYMBOLS_CONFIG
 
@@ -622,6 +622,21 @@ def annotate(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "ladder_trigger_label",
             "Reset",
         )
+        # 新版主判斷：只評估做多「機會位置」，不把趨勢強弱等同進場價值。
+        record["_long_opportunity"] = build_long_opportunity(
+            record,
+            preview_ladder_history(record),
+        )
+        opp = record["_long_opportunity"]
+        mid = opp.get("midline") or {}
+        p2 = opp.get("purple2_reference") or {}
+        record["_long_stars"] = int(opp.get("stars", 1) or 1)
+        record["做多星級"] = opp.get("stars_text", "★☆☆☆☆")
+        record["做多結構"] = opp.get("setup_name", "一般等待")
+        record["T階段"] = opp.get("trigger_stage", "T0")
+        record["中軌狀態"] = f"{mid.get('symbol','?')} {mid.get('label','未知')}"
+        p2_gap = p2.get("current_gap_price_pct")
+        record["紫2差距"] = "—" if p2_gap is None else f"{float(p2_gap):+.2f}%"
         output.append(record)
     return output
 
@@ -711,32 +726,102 @@ def filter_and_sort(
     items: list[dict[str, Any]],
     option: str,
 ) -> list[dict[str, Any]]:
-    label_map = {
-        "型態：🚀中軌突破回踩轉黃型": "中軌突破回踩轉黃型",
-        "型態：⚡中軌下方 PO3/AMD 強反轉型": "中軌下方 PO3/AMD 強反轉型",
-        "型態：🧲中軌下方 PO3/AMD 反轉候選型": "中軌下方 PO3/AMD 反轉候選型",
-        "型態：🕒中軌下方 PO3/AMD 轉黃早期觀察型": "中軌下方 PO3/AMD 轉黃早期觀察型",
-        "型態：🧩中軌附近磨合轉黃型": "中軌附近磨合轉黃型",
-        "型態：☔紫線未轉黃觀察型": "紫線未轉黃觀察型",
-    }
-
     filtered = list(items)
-    if option in label_map:
-        filtered = [
-            item
-            for item in filtered
-            if item.get("_pattern_type_hint") == label_map[option]
-        ]
+
+    if option == "🔥 即將上漲（★★★以上）":
+        filtered = [x for x in filtered if int((x.get("_long_opportunity") or {}).get("stars", 1)) >= 3]
+    elif option.startswith("★★★★★"):
+        filtered = [x for x in filtered if int((x.get("_long_opportunity") or {}).get("stars", 1)) == 5]
+    elif option.startswith("★★★★"):
+        filtered = [x for x in filtered if int((x.get("_long_opportunity") or {}).get("stars", 1)) == 4]
+    elif option.startswith("★★★"):
+        filtered = [x for x in filtered if int((x.get("_long_opportunity") or {}).get("stars", 1)) == 3]
+    elif option.startswith("★★ "):
+        filtered = [x for x in filtered if int((x.get("_long_opportunity") or {}).get("stars", 1)) == 2]
+    elif option.startswith("★ "):
+        filtered = [x for x in filtered if int((x.get("_long_opportunity") or {}).get("stars", 1)) == 1]
+    elif option.startswith("結構："):
+        keyword = option.split("：", 1)[1]
+        keyword_map = {
+            "回踩中軌": {1, 2, 3, 9},
+            "中軌下反轉": {4, 5, 11},
+            "中軌附近糾纏": {6},
+            "首次測中軌": {7},
+            "極限壓縮待爆": {10},
+            "成熟擴張／不追": set(),
+        }
+        if keyword == "成熟擴張／不追":
+            filtered = [
+                x for x in filtered
+                if bool(((x.get("_long_opportunity") or {}).get("maturity") or {}).get("mature_bull_expansion"))
+                or bool(((x.get("_long_opportunity") or {}).get("maturity") or {}).get("mature_bear_expansion"))
+            ]
+        else:
+            ids = keyword_map.get(keyword, set())
+            filtered = [x for x in filtered if int((x.get("_long_opportunity") or {}).get("setup_id", 0)) in ids]
+    elif option.startswith("中軌："):
+        state_map = {
+            "中軌：↑ 上斜": "rising",
+            "中軌：→ 平緩": "flat",
+            "中軌：↘ 走平中": "flattening",
+            "中軌：↓ 下斜": "falling",
+        }
+        wanted = state_map.get(option)
+        filtered = [x for x in filtered if (((x.get("_long_opportunity") or {}).get("midline") or {}).get("state") == wanted)]
 
     if option == "依幣種英文字母順序排序":
         return sorted(filtered, key=lambda item: item["幣種"])
 
-    return sorted(
-        filtered,
-        key=lambda item: (
-            -int(item.get("_machine_score_hint_0_100", 0)),
-            item["幣種"],
-        ),
+    # 星級高 → T2新鮮 → 靠近中軌 → 幣名字母。
+    def sort_key(item):
+        opp = item.get("_long_opportunity") or {}
+        stars = int(opp.get("stars", 1))
+        stage = str(opp.get("trigger_stage", "T0"))
+        freshness = (opp.get("trigger_freshness") or {}).get("days_ago")
+        fresh_rank = 9 if freshness is None else int(freshness)
+        stage_rank = {"T2": 0, "T1": 1, "T0": 2}.get(stage, 3)
+        return (-stars, stage_rank, fresh_rank, abs(float(item.get("_ha_curr_pct", 999))), item["幣種"])
+
+    return sorted(filtered, key=sort_key)
+
+
+def opportunity_badge(record: dict[str, Any]) -> str:
+    opp = record.get("_long_opportunity") or {}
+    stars = int(opp.get("stars", 1))
+    stars_text = html.escape(str(opp.get("stars_text", "★☆☆☆☆")))
+    label = html.escape(str(opp.get("opportunity_label", "非追價區")))
+    palette = {
+        5: ("#fde047", "rgba(250,204,21,.12)"),
+        4: ("#c084fc", "rgba(192,132,252,.10)"),
+        3: ("#60a5fa", "rgba(96,165,250,.10)"),
+        2: ("#4ade80", "rgba(74,222,128,.09)"),
+        1: ("#94a3b8", "rgba(148,163,184,.08)"),
+    }
+    color, bg = palette.get(stars, palette[1])
+    return (
+        "<div style='padding:4px 8px;border-radius:999px;white-space:nowrap;"
+        f"border:1px solid {color};background:{bg};color:{color};"
+        "font-size:10px;font-weight:800'>"
+        f"{stars_text} {label}</div>"
+    )
+
+
+def geometry_badges(record: dict[str, Any]) -> str:
+    opp = record.get("_long_opportunity") or {}
+    mid = opp.get("midline") or {}
+    stage = html.escape(str(opp.get("trigger_stage", "T0")))
+    mid_text = html.escape(f"中軌 {mid.get('symbol','?')} {mid.get('label','未知')}")
+    p2 = opp.get("purple2_reference") or {}
+    gap = p2.get("current_gap_price_pct")
+    p2_text = "紫2 —" if gap is None else (f"紫2 {float(gap):+.2f}%")
+    p2_color = "#fde047" if gap is not None and float(gap) >= 0 else "#c4b5fd"
+    stage_color = {"T2":"#fde047", "T1":"#60a5fa", "T0":"#c4b5fd"}.get(stage, "#cbd5e1")
+    return (
+        "<div style='display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end'>"
+        f"<span style='padding:3px 7px;border:1px solid {stage_color};border-radius:999px;color:{stage_color};font-size:10px;font-weight:800'>{stage}</span>"
+        f"<span style='padding:3px 7px;border:1px solid #64748b;border-radius:999px;color:#cbd5e1;font-size:10px;font-weight:700'>{mid_text}</span>"
+        f"<span style='padding:3px 7px;border:1px solid {p2_color};border-radius:999px;color:{p2_color};font-size:10px;font-weight:700'>{html.escape(p2_text)}</span>"
+        "</div>"
     )
 
 def render_hud_loader(
@@ -756,9 +841,9 @@ def render_hud_loader(
 
     module_defs = [
         ("MARKET DATA", "市場資料", "hud-yellow", min(100, pct * 2)),
-        ("PATTERN ANALYSIS", "型態分析", "hud-teal", max(0, min(100, (pct - 15) * 2))),
-        ("SIGNAL MATCHING", "訊號比對", "hud-green", max(0, min(100, (pct - 40) * 2))),
-        ("SCORING ENGINE", "評分引擎", "hud-cyan", max(0, min(100, (pct - 65) * 3))),
+        ("GEOMETRY ANALYSIS", "幾何分析", "hud-teal", max(0, min(100, (pct - 15) * 2))),
+        ("TRIGGER MATCHING", "T0/T1/T2 比對", "hud-green", max(0, min(100, (pct - 40) * 2))),
+        ("OPPORTUNITY RANK", "機會星級", "hud-cyan", max(0, min(100, (pct - 65) * 3))),
     ]
     module_cards = []
     for english, chinese, color_class, module_pct in module_defs:
@@ -928,7 +1013,8 @@ if not results:
 
 annotated = annotate(results)
 dataframe = pd.DataFrame(annotated).sort_values(
-    by=["1D前", "1D當", "4H前", "4H當"]
+    by=["_long_stars", "幣種"],
+    ascending=[False, True],
 )
 
 with st.expander(
@@ -937,6 +1023,11 @@ with st.expander(
 ):
     show_columns = [
         "幣種",
+        "做多星級",
+        "做多結構",
+        "T階段",
+        "中軌狀態",
+        "紫2差距",
         "現價",
         "差%",
         "均K界",
@@ -964,7 +1055,7 @@ with st.expander(
 
 st.markdown("---")
 sort_option = st.selectbox(
-    "圖表排序 / 型態過濾方式",
+    "做多機會排序 / 幾何過濾方式",
     PATTERN_SORT_OPTIONS,
     index=0,
 )
@@ -992,7 +1083,7 @@ download_slot.download_button(
     use_container_width=True,
 )
 
-st.markdown("### 📈 最近 20 根 HA 實際價格 + BB 上／中／下軌")
+st.markdown("### 📈 做多機會掃描｜20 日 HA 階梯 + BB 幾何")
 st.caption(
     f"目前顯示 {len(plot_results)} / {len(annotated)} 張圖；"
     f"下載的 snapshot_ai.json 仍包含完整 {len(annotated)} 個幣種。"
@@ -1004,8 +1095,9 @@ chart_columns = st.columns(column_count)
 for index, record in enumerate(plot_results):
     with chart_columns[index % column_count]:
         with st.container(border=True):
-            pattern = record.get("_pattern_type_hint", "一般觀察型")
-            score = record.get("_machine_score_hint_0_100", 0)
+            opp = record.get("_long_opportunity") or {}
+            setup_name = html.escape(str(opp.get("setup_name", "一般等待")))
+            structure_state = html.escape(str(opp.get("structure_state", "等待")))
             sector = get_sector_badge(record["幣種"])
 
             title = (
@@ -1019,14 +1111,14 @@ for index, record in enumerate(plot_results):
                 f"目前偏離 {html.escape(record['差%'])}　|　"
                 f"4H前 {record['4H前']} 4H當 {record['4H當']}"
                 "</div>"
-                "<div style='font-size:13px;color:#cbd5e1;margin-top:2px;"
+                "<div style='font-size:12px;color:#cbd5e1;margin-top:3px;"
                 "white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
-                f"型態：{html.escape(pattern)}　|　分數：{score}/100"
+                f"{setup_name}　｜　{structure_state}"
                 "</div></div>"
                 "<div style='display:flex;flex-direction:column;"
-                "align-items:flex-end;gap:5px;max-width:310px'>"
-                "<div style='display:flex;gap:6px'>"
-                + trigger_badge(record)
+                "align-items:flex-end;gap:5px;max-width:360px'>"
+                "<div style='display:flex;gap:6px;align-items:center'>"
+                + opportunity_badge(record)
                 + (
                     "<div style='padding:4px 8px;"
                     "border:1px solid rgba(19,242,26,.55);"
@@ -1036,6 +1128,7 @@ for index, record in enumerate(plot_results):
                     f"{html.escape(sector)}</div>"
                 )
                 + "</div>"
+                + geometry_badges(record)
                 + threshold_badge(record)
                 + "</div></div>"
             )
@@ -1111,6 +1204,38 @@ for index, record in enumerate(plot_results):
                         hoverinfo="none",
                         name="BB中軌",
                     )
+                )
+
+            # ── 紫2參考線：做多 T1/T2 的核心門檻，讓肉眼直接核對 ──
+            purple2 = (opp.get("purple2_reference") or {})
+            purple2_price = purple2.get("ha_price")
+            purple2_index = purple2.get("index")
+            if (
+                purple2_price is not None
+                and purple2_index is not None
+                and 0 <= int(purple2_index) < len(x_values)
+            ):
+                ref_idx = int(purple2_index)
+                figure.add_trace(
+                    go.Scatter(
+                        x=[x_values[ref_idx], x_values[-1]],
+                        y=[float(purple2_price), float(purple2_price)],
+                        mode="lines",
+                        line=dict(color="rgba(196,181,253,.65)", width=1.0, dash="dot"),
+                        hoverinfo="none",
+                        showlegend=False,
+                    )
+                )
+                figure.add_annotation(
+                    x=x_values[ref_idx],
+                    y=float(purple2_price),
+                    text="紫2",
+                    showarrow=False,
+                    xanchor="left",
+                    yanchor="bottom",
+                    xshift=3,
+                    yshift=2,
+                    font=dict(size=9, color="#c4b5fd"),
                 )
 
             # ── HA 日線階梯：每一段依該根 HA 黃／紫著色 ──

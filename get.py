@@ -11,11 +11,11 @@ import numpy as np
 import pandas as pd
 
 from github_sync import sync_snapshot_to_github
-from scoring_rules import build_pattern_flags, classify_pattern, score_hint
+from scoring_rules import build_long_opportunity, build_pattern_flags, classify_pattern, score_hint
 from sector_config import SECTOR_TAGS
 
 TW_TZ = timezone(timedelta(hours=8))
-SCHEMA_VERSION = "crypto-monitor-ai-v2-visual20d"
+SCHEMA_VERSION = "crypto-monitor-ai-v3-long-opportunity"
 GROUP_LIMIT = 20
 
 CHART_SEMANTICS = {
@@ -34,6 +34,15 @@ CHART_SEMANTICS = {
         "bandwidth_state": "expanding/contracting/stable",
         "expansion_direction": "upward/downward/two_sided/contracting/none",
         "note": "raw chart_20d remains authoritative; summary labels are mechanical aids for AI",
+    },
+    "long_opportunity": {
+        "scope": "long-side entry opportunity only; short-side scoring is intentionally not enabled",
+        "stars": "1-5 measures entry opportunity/freshness, NOT bullish trend strength",
+        "T0": "latest HA still purple; wait for yellow",
+        "T1": "yellow appeared but has not exceeded the second-last purple HA step",
+        "T2": "yellow appeared and exceeded the second-last purple HA step",
+        "midline_regime": "rising / flat / flattening / falling based on recent 5d slope and prior 5d deceleration",
+        "one_star_note": "one star is not failure; it can mean mature expansion / do-not-chase or otherwise poor long entry timing",
     },
 }
 
@@ -403,6 +412,12 @@ def _compact_record(source: dict[str, Any]) -> dict[str, Any]:
     if score is None:
         score = score_hint(flags, {"abs_dev": source.get("_abs_dev")})
 
+    opportunity = (
+        source.get("_long_opportunity")
+        or source.get("opportunity_long")
+        or build_long_opportunity(source, flag_history)
+    )
+
     symbol = str(source.get("幣種") or source.get("symbol") or "").upper()
     threshold = source.get("_ha_threshold") or source.get("ha_color_threshold") or {}
     h4_tail = [_color_name(value) for value in list(source.get("_ha4h_color_series") or [])[-4:]]
@@ -426,208 +441,136 @@ def _compact_record(source: dict[str, Any]) -> dict[str, Any]:
             "price": _round(threshold.get("price")),
             "gap_pct": _round(threshold.get("signed_gap_pct"), 6),
         },
-        "ladder": {
-            "state": str(flags.get("ladder_trigger_state") or "red"),
-            "label": str(flags.get("ladder_trigger_label") or "Reset"),
-            "latest_color": str(flags.get("latest_color") or "unknown"),
-            "latest_pct": _round(flags.get("latest_pct_vs_midline"), 6),
-            "yellow_run_length": int(flags.get("yellow_run_length") or 0),
-            "mature": bool(flags.get("ladder_trigger_mature")),
-        },
-        "pattern": {
-            "type": str(pattern_type),
-            "breakout_pullback_restart": bool(
-                flags.get("breakout_pullback_yellow_restart")
-            ),
-            "po3_quality": str(flags.get("po3_amd_quality_label") or "none"),
-            "po3_strong": bool(flags.get("po3_amd_strong_reversal")),
-            "po3_candidate": bool(flags.get("po3_amd_w_bottom_candidate")),
-            "po3_early": bool(flags.get("po3_amd_early_weak_rebound")),
-            "yellow_over_previous_purple_count": int(
-                flags.get("yellow_over_previous_purple_count") or 0
-            ),
-            "four_h_trigger": h4_pair,
-        },
-        "score": int(score or 0),
-        # 舊欄位保留，避免既有 AI prompt / 外部工具中斷。
+        # 新版主判斷：星級代表「做多進場機會」，不是趨勢強弱。
+        "opportunity_long": opportunity,
+        # 最近8日階梯摘要保留，方便 AI 快速閱讀；權威資料仍是 chart_20d。
         "ladder_tail": history[-8:],
         # 20 日視覺等價資料：與 Streamlit 圖表使用完全相同的 HA + BB 序列。
         "chart_20d": chart_20d,
-        # 直接把人眼會判斷的斜率、擴張/收縮、方向先機械化給 AI。
+        # 人眼會判斷的斜率、擴張/收縮、方向。
         "visual_summary": visual_summary,
+        # 舊型態/L2/機械分數只留作歷史對照，不參與新版排序與星級。
+        "legacy_reference": {
+            "ladder": {
+                "state": str(flags.get("ladder_trigger_state") or "red"),
+                "label": str(flags.get("ladder_trigger_label") or "Reset"),
+                "latest_color": str(flags.get("latest_color") or "unknown"),
+                "latest_pct": _round(flags.get("latest_pct_vs_midline"), 6),
+                "yellow_run_length": int(flags.get("yellow_run_length") or 0),
+                "mature": bool(flags.get("ladder_trigger_mature")),
+            },
+            "pattern": {
+                "type": str(pattern_type),
+                "breakout_pullback_restart": bool(flags.get("breakout_pullback_yellow_restart")),
+                "po3_quality": str(flags.get("po3_amd_quality_label") or "none"),
+                "yellow_over_previous_purple_count": int(flags.get("yellow_over_previous_purple_count") or 0),
+                "four_h_trigger": h4_pair,
+            },
+            "score": int(score or 0),
+        },
     }
 
 
 def _build_breadth(records: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(records)
-
-    ladder_counts = Counter(
-        record.get("ladder", {}).get("state", "unknown") for record in records
+    latest_colors = Counter(
+        (record.get("opportunity_long", {}).get("current", {}) or {}).get("ha_color", "unknown")
+        for record in records
     )
-    daily_counts = Counter(
-        record.get("threshold", {}).get("state", "unknown") for record in records
+    star_counts = Counter(
+        int(record.get("opportunity_long", {}).get("stars", 1) or 1)
+        for record in records
     )
-    four_h_counts = Counter(
-        record.get("pattern", {}).get("four_h_trigger", "unknown") for record in records
+    stage_counts = Counter(
+        record.get("opportunity_long", {}).get("trigger_stage", "T0")
+        for record in records
+    )
+    midline_counts = Counter(
+        (record.get("opportunity_long", {}).get("midline", {}) or {}).get("state", "unknown")
+        for record in records
     )
 
     above = sum(1 for record in records if (record.get("bb_pct") or 0) > 0)
     below = sum(1 for record in records if (record.get("bb_pct") or 0) < 0)
     at_midline = total - above - below
-    near_1 = sum(
-        1
-        for record in records
-        if record.get("bb_pct") is not None and abs(record["bb_pct"]) <= 1
-    )
-    near_3 = sum(
-        1
-        for record in records
-        if record.get("bb_pct") is not None and abs(record["bb_pct"]) <= 3
-    )
-
-    red_count = int(ladder_counts.get("red", 0))
-    red_ratio = round(red_count / total * 100, 2) if total else 0.0
-    red_majority = red_count > total / 2 if total else False
 
     return {
-        "ladder": {
-            "red": red_count,
-            "yellow": int(ladder_counts.get("yellow", 0)),
-            "green": int(ladder_counts.get("green", 0)),
-            "other": int(
-                total
-                - ladder_counts.get("red", 0)
-                - ladder_counts.get("yellow", 0)
-                - ladder_counts.get("green", 0)
-            ),
-            "red_ratio_pct": red_ratio,
-            "red_majority": red_majority,
+        "long_opportunity": {
+            "five_star": int(star_counts.get(5, 0)),
+            "four_star": int(star_counts.get(4, 0)),
+            "three_star": int(star_counts.get(3, 0)),
+            "two_star": int(star_counts.get(2, 0)),
+            "one_star": int(star_counts.get(1, 0)),
+            "three_star_or_better": int(sum(star_counts.get(x, 0) for x in (3,4,5))),
+        },
+        "trigger_stage": {
+            "T0": int(stage_counts.get("T0", 0)),
+            "T1": int(stage_counts.get("T1", 0)),
+            "T2": int(stage_counts.get("T2", 0)),
+        },
+        "midline_regime": {
+            "rising": int(midline_counts.get("rising", 0)),
+            "flat": int(midline_counts.get("flat", 0)),
+            "flattening": int(midline_counts.get("flattening", 0)),
+            "falling": int(midline_counts.get("falling", 0)),
         },
         "daily_ha": {
-            "purple": int(daily_counts.get("purple", 0)),
-            "yellow": int(daily_counts.get("yellow", 0)),
-            "flat_or_unknown": int(
-                total
-                - daily_counts.get("purple", 0)
-                - daily_counts.get("yellow", 0)
-            ),
+            "purple": int(latest_colors.get("purple", 0)),
+            "yellow": int(latest_colors.get("yellow", 0)),
+            "flat_or_unknown": int(total-latest_colors.get("purple",0)-latest_colors.get("yellow",0)),
         },
-        "four_h_pairs": {
-            "red_red": int(four_h_counts.get("red_red", 0)),
-            "red_green": int(four_h_counts.get("red_green", 0)),
-            "green_green": int(four_h_counts.get("green_green", 0)),
-            "green_red": int(four_h_counts.get("green_red", 0)),
-            "other": int(
-                total
-                - four_h_counts.get("red_red", 0)
-                - four_h_counts.get("red_green", 0)
-                - four_h_counts.get("green_green", 0)
-                - four_h_counts.get("green_red", 0)
-            ),
+        "midline_position": {
+            "real_price_above": above,
+            "real_price_below": below,
+            "real_price_at": at_midline,
+            "real_price_near_3pct": sum(1 for r in records if r.get("bb_pct") is not None and abs(r.get("bb_pct") or 0) <= 3),
         },
-        "midline": {
-            "above": above,
-            "below": below,
-            "at": at_midline,
-            "near_1pct": near_1,
-            "near_3pct": near_3,
-        },
-        "warnings": (
-            ["ladder_red_majority_broad_market_pullback"]
-            if red_majority
-            else []
-        ),
     }
-
 
 def _ranked_symbols(
     records: list[dict[str, Any]],
     predicate,
     *,
-    near_first: bool = False,
     limit: int = GROUP_LIMIT,
 ) -> list[str]:
     selected = [record for record in records if predicate(record)]
-
-    if near_first:
-        selected.sort(
-            key=lambda record: (
-                abs(record["bb_pct"]) if record.get("bb_pct") is not None else 999,
-                -int(record.get("score") or 0),
-                record.get("symbol") or "",
-            )
-        )
-    else:
-        selected.sort(
-            key=lambda record: (
-                -int(record.get("score") or 0),
-                abs(record["bb_pct"]) if record.get("bb_pct") is not None else 999,
-                record.get("symbol") or "",
-            )
-        )
+    def key(record):
+        opp = record.get("opportunity_long", {}) or {}
+        stars = int(opp.get("stars", 1) or 1)
+        stage = str(opp.get("trigger_stage", "T0"))
+        days = (opp.get("trigger_freshness", {}) or {}).get("days_ago")
+        fresh = 9 if days is None else int(days)
+        current_pct = abs(float((opp.get("current", {}) or {}).get("ha_vs_midline_pct") or 999))
+        return (-stars, {"T2":0,"T1":1,"T0":2}.get(stage,3), fresh, current_pct, record.get("symbol") or "")
+    selected.sort(key=key)
     return [str(record.get("symbol")) for record in selected[:limit]]
 
 
 def _build_groups(records: list[dict[str, Any]]) -> dict[str, list[str]]:
+    def stars(n):
+        return lambda r: int((r.get("opportunity_long", {}) or {}).get("stars", 1) or 1) == n
+    def setup_ids(*ids):
+        wanted=set(ids)
+        return lambda r: int((r.get("opportunity_long", {}) or {}).get("setup_id",0) or 0) in wanted
     return {
-        "breakout_pullback_restart": _ranked_symbols(
+        "long_5_star_triggered": _ranked_symbols(records, stars(5)),
+        "long_4_star_confirming": _ranked_symbols(records, stars(4)),
+        "long_3_star_waiting": _ranked_symbols(records, stars(3)),
+        "wave3_midline_retest": _ranked_symbols(records, setup_ids(1,2,3,9)),
+        "below_midline_reversal": _ranked_symbols(records, setup_ids(4,5,11)),
+        "midline_chop": _ranked_symbols(records, setup_ids(6)),
+        "first_midline_test": _ranked_symbols(records, setup_ids(7)),
+        "extreme_squeeze": _ranked_symbols(records, setup_ids(10)),
+        "mature_expansion_do_not_chase": _ranked_symbols(
             records,
-            lambda record: bool(
-                record.get("pattern", {}).get("breakout_pullback_restart")
-            ),
+            lambda r: bool(((r.get("opportunity_long", {}) or {}).get("maturity", {}) or {}).get("mature_bull_expansion"))
+            or bool(((r.get("opportunity_long", {}) or {}).get("maturity", {}) or {}).get("mature_bear_expansion")),
         ),
-        "yellow_stage_1": _ranked_symbols(
+        "midline_long_friendly": _ranked_symbols(
             records,
-            lambda record: (
-                record.get("ladder", {}).get("latest_color") == "yellow"
-                and record.get("ladder", {}).get("yellow_run_length") == 1
-            ),
-        ),
-        "yellow_stage_2": _ranked_symbols(
-            records,
-            lambda record: (
-                record.get("ladder", {}).get("latest_color") == "yellow"
-                and record.get("ladder", {}).get("yellow_run_length") == 2
-            ),
-        ),
-        "four_h_red_green": _ranked_symbols(
-            records,
-            lambda record: (
-                record.get("pattern", {}).get("four_h_trigger") == "red_green"
-            ),
-        ),
-        "four_h_green_green": _ranked_symbols(
-            records,
-            lambda record: (
-                record.get("pattern", {}).get("four_h_trigger") == "green_green"
-            ),
-        ),
-        "near_midline": _ranked_symbols(
-            records,
-            lambda record: (
-                record.get("bb_pct") is not None
-                and abs(record.get("bb_pct") or 0) <= 3
-            ),
-            near_first=True,
-        ),
-        "ladder_green": _ranked_symbols(
-            records,
-            lambda record: record.get("ladder", {}).get("state") == "green",
-        ),
-        "ladder_yellow": _ranked_symbols(
-            records,
-            lambda record: record.get("ladder", {}).get("state") == "yellow",
-        ),
-        "po3_strong": _ranked_symbols(
-            records,
-            lambda record: bool(record.get("pattern", {}).get("po3_strong")),
-        ),
-        "po3_candidate": _ranked_symbols(
-            records,
-            lambda record: bool(record.get("pattern", {}).get("po3_candidate")),
+            lambda r: ((r.get("opportunity_long", {}) or {}).get("midline", {}) or {}).get("state") in {"rising","flat","flattening"},
         ),
     }
-
 
 def _snapshot_hash(selection: str, records: list[dict[str, Any]]) -> str:
     raw = json.dumps(
