@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 import numpy as np
 import pandas as pd
 import requests
@@ -308,10 +309,29 @@ def get_ha_color(candle: dict) -> str:
     return "⚫"
 
 
-def calculate_bollinger_basis(klines: list[dict], period: int = 20):
+def calculate_bollinger_bands(
+    klines: list[dict],
+    period: int = 20,
+    std_multiplier: float = 2.0,
+):
     if len(klines) < period:
-        return None
-    return float(np.mean([item["close"] for item in klines[-period:]]))
+        return None, None, None
+
+    closes = np.asarray(
+        [item["close"] for item in klines[-period:]],
+        dtype=float,
+    )
+    basis = float(np.mean(closes))
+    std = float(np.std(closes, ddof=0))
+    upper = basis + std_multiplier * std
+    lower = basis - std_multiplier * std
+    return basis, upper, lower
+
+
+def calculate_bollinger_basis(klines: list[dict], period: int = 20):
+    """保留舊介面；中軌仍採普通日 K close 的 SMA。"""
+    basis, _, _ = calculate_bollinger_bands(klines, period=period)
+    return basis
 
 
 def get_bb_signal(ha_close, basis):
@@ -424,7 +444,11 @@ def analyze_symbol(symbol: str):
 
         daily_ha = calculate_heikin_ashi(daily_raw)
         four_h_ha = calculate_heikin_ashi(four_h_raw)
-        basis = calculate_bollinger_basis(daily_raw, 20)
+        basis, upper_band, lower_band = calculate_bollinger_bands(
+            daily_raw,
+            period=20,
+            std_multiplier=2.0,
+        )
         price = four_h_raw[-1]["close"]
 
         previous_daily = get_ha_color(daily_ha[-2])
@@ -443,14 +467,29 @@ def analyze_symbol(symbol: str):
         last_20 = daily_ha[-20:]
         raw_closes = [item["close"] for item in daily_raw]
         percentages = []
+        band_basis_series = []
+        band_upper_series = []
+        band_lower_series = []
 
         for index, candle in enumerate(last_20):
             end_index = len(raw_closes) - (len(last_20) - 1 - index)
-            sma = (
-                float(np.mean(raw_closes[end_index - 20 : end_index]))
-                if end_index >= 20
-                else 0.0
-            )
+            if end_index >= 20:
+                window = np.asarray(
+                    raw_closes[end_index - 20 : end_index],
+                    dtype=float,
+                )
+                sma = float(np.mean(window))
+                std = float(np.std(window, ddof=0))
+                upper = sma + 2.0 * std
+                lower = sma - 2.0 * std
+            else:
+                sma = 0.0
+                upper = np.nan
+                lower = np.nan
+
+            band_basis_series.append(sma if sma > 0 else np.nan)
+            band_upper_series.append(upper)
+            band_lower_series.append(lower)
             percentages.append(
                 (candle["close"] - sma) / sma * 100
                 if sma > 0
@@ -476,7 +515,9 @@ def analyze_symbol(symbol: str):
             "現價": format_price(price),
             "差%": f"{dot} {bb_pct:+.2f}%",
             "均K界": threshold_display,
+            "BB日上軌": format_price(upper_band),
             "BB日中軌": format_price(basis),
+            "BB日下軌": format_price(lower_band),
             "BB中軌": get_bb_signal(daily_ha[-1]["close"], basis),
             "1D前": previous_daily,
             "1D當": current_daily,
@@ -488,10 +529,15 @@ def analyze_symbol(symbol: str):
             "距離中軌%": f"{abs_dev:.2f}%",
             "_price": price,
             "_bb1d": basis or 0.0,
+            "_bb_upper_1d": upper_band or 0.0,
+            "_bb_lower_1d": lower_band or 0.0,
             "_bb_pct": bb_pct,
             "_abs_dev": abs_dev,
             "_ha_pct_series": percentages,
             "_ha_curr_pct": percentages[-1],
+            "_bb_basis_series": band_basis_series,
+            "_bb_upper_series": band_upper_series,
+            "_bb_lower_series": band_lower_series,
             "_ha_opens_last20": [item["open"] for item in last_20],
             "_ha_closes_last20": [item["close"] for item in last_20],
             "_ha_times_last20": [item["time"] for item in last_20],
@@ -875,7 +921,9 @@ with st.expander(
         "現價",
         "差%",
         "均K界",
+        "BB日上軌",
         "BB日中軌",
+        "BB日下軌",
         "BB中軌",
         "1D前",
         "1D當",
@@ -925,7 +973,7 @@ download_slot.download_button(
     use_container_width=True,
 )
 
-st.markdown("### 📈 最近 20 根 HA 收盤價 vs BB中軌 % 偏差走勢圖")
+st.markdown("### 📈 最近 20 根 HA 實際價格 + BB 上／中／下軌")
 st.caption(
     f"目前顯示 {len(plot_results)} / {len(annotated)} 張圖；"
     f"下載的 snapshot_ai.json 仍包含完整 {len(annotated)} 個幣種。"
@@ -974,13 +1022,68 @@ for index, record in enumerate(plot_results):
             )
             st.markdown(title, unsafe_allow_html=True)
 
-            y_values = record["_ha_pct_series"]
+            y_values = record["_ha_closes_last20"]
+            basis_values = np.asarray(
+                record.get("_bb_basis_series") or [],
+                dtype=float,
+            )
+            upper_values = np.asarray(
+                record.get("_bb_upper_series") or [],
+                dtype=float,
+            )
+            lower_values = np.asarray(
+                record.get("_bb_lower_series") or [],
+                dtype=float,
+            )
             x_values = list(range(len(y_values)))
             figure, axis = plt.subplots(
                 figsize=(5.8, 2.9),
                 facecolor="#1e293b",
             )
             axis.set_facecolor("#1e293b")
+
+            # ── 布林帶：全部使用普通日 K close 計算，座標為實際價格 ──
+            if len(basis_values) == len(x_values):
+                axis.plot(
+                    x_values,
+                    upper_values,
+                    color="#b8b8b8",
+                    linewidth=2.0,
+                    alpha=0.90,
+                    zorder=2,
+                )
+                axis.plot(
+                    x_values,
+                    basis_values,
+                    color="#8f9aa7",
+                    linewidth=1.45,
+                    linestyle="--",
+                    alpha=0.90,
+                    zorder=2,
+                )
+                axis.plot(
+                    x_values,
+                    lower_values,
+                    color="#b8b8b8",
+                    linewidth=2.0,
+                    alpha=0.90,
+                    zorder=2,
+                )
+                valid_band = (
+                    np.isfinite(upper_values)
+                    & np.isfinite(lower_values)
+                )
+                if valid_band.any():
+                    axis.fill_between(
+                        x_values,
+                        lower_values,
+                        upper_values,
+                        where=valid_band,
+                        color="#94a3b8",
+                        alpha=0.035,
+                        interpolate=True,
+                        zorder=1,
+                    )
 
             for line_index in range(len(y_values) - 1):
                 color = (
@@ -995,6 +1098,7 @@ for index, record in enumerate(plot_results):
                     where="post",
                     color=color,
                     linewidth=2.3,
+                    zorder=5,
                 )
 
             if x_values:
@@ -1022,37 +1126,13 @@ for index, record in enumerate(plot_results):
                 )
                 axis.text(
                     x_values[-1] - 0.05,
-                    y_values[-1] + 0.45,
-                    f"{y_values[-1]:+.2f}%",
+                    y_values[-1],
+                    f"  {record['_ha_curr_pct']:+.2f}%",
                     ha="right",
                     va="bottom",
                     fontsize=8,
-                    color="#FFEB3B",
+                    color=latest_color,
                 )
-
-            axis.axhline(
-                0,
-                color="#94a3b8",
-                linestyle="--",
-                linewidth=1.2,
-                alpha=0.75,
-            )
-            axis.fill_between(
-                x_values,
-                y_values,
-                0,
-                where=np.array(y_values) >= 0,
-                step="post",
-                alpha=0.10,
-            )
-            axis.fill_between(
-                x_values,
-                y_values,
-                0,
-                where=np.array(y_values) < 0,
-                step="post",
-                alpha=0.10,
-            )
 
             labels = [
                 datetime.fromtimestamp(
@@ -1081,6 +1161,9 @@ for index, record in enumerate(plot_results):
                 labelsize=7,
                 colors="#94a3b8",
             )
+            axis.yaxis.set_major_formatter(
+                FuncFormatter(lambda value, _: format_price(value))
+            )
             axis.grid(alpha=0.12)
             axis.set_ylabel("")
 
@@ -1095,7 +1178,7 @@ for index, record in enumerate(plot_results):
 
             with label_column:
                 st.markdown(
-                    "<div class='chart-y-label'><span>乖</span><span>離</span><span>中</span><span>軌</span><span>%</span></div>",
+                    "<div class='chart-y-label'><span>實</span><span>際</span><span>價</span><span>格</span></div>",
                     unsafe_allow_html=True,
                 )
             with plot_column:
