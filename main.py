@@ -41,18 +41,6 @@ html,body,[data-testid="stAppViewContainer"]{background:#1e293b;color:#f1f5f9}
 .cyber-subtitle{font-size:11px;color:#94a3b8}
 .stButton>button{background:transparent!important;color:#13f21a!important;border:1px solid #13f21a!important;font-weight:700!important;width:100%}
 [data-testid="stDataFrame"],[data-testid="stDataEditor"]{border:1px solid rgba(148,163,184,.25);border-radius:9px}
-.chart-y-label{
-    height:305px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    color:#94a3b8;
-    font-size:12px;
-    line-height:1.06;
-    white-space:nowrap;
-}
-.chart-y-label span{display:block}
 .hud-loader{
     position:relative;
     margin:10px 0 20px;
@@ -261,6 +249,40 @@ def format_price(price: Any) -> str:
     if value >= 0.0001:
         return f"{value:.6f}"
     return f"{value:.8f}"
+
+
+def _compact_price_axis_formatter(values: list[float] | np.ndarray):
+    """Return a TradingView-like compact formatter for very small prices.
+
+    Example: 0.00000281 -> 0.28e-5.  Normal-priced assets keep the
+    existing decimal formatter.  The exponent is shared per chart so all
+    Y-axis ticks remain directly comparable.
+    """
+    finite = np.asarray(values, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    finite = np.abs(finite[finite != 0])
+
+    if finite.size == 0:
+        return FuncFormatter(lambda value, _: format_price(value))
+
+    representative = float(np.median(finite))
+
+    # Only compact prices with a long leading-zero tail.  This keeps BTC,
+    # ETH, POL, etc. in the familiar normal-price display.
+    if representative >= 0.0001:
+        return FuncFormatter(lambda value, _: format_price(value))
+
+    exponent = int(np.floor(np.log10(representative))) + 1
+    scale = 10.0 ** exponent
+
+    def _format(value: float, _: int) -> str:
+        scaled = value / scale
+        text = f"{scaled:.2f}".rstrip("0").rstrip(".")
+        if text == "-0":
+            text = "0"
+        return f"{text}e{exponent}"
+
+    return FuncFormatter(_format)
 
 
 def calculate_heikin_ashi(klines: list[dict]) -> list[dict]:
@@ -1161,30 +1183,29 @@ for index, record in enumerate(plot_results):
                 labelsize=7,
                 colors="#94a3b8",
             )
+            # 小數位非常深的幣種改用 TradingView 類似的 e-N 緊湊刻度，
+            # 例如 0.00000281 顯示為約 0.28e-5，避免 Y 軸吃掉繪圖寬度。
+            axis_scale_values = np.concatenate([
+                np.asarray(y_values, dtype=float),
+                basis_values[np.isfinite(basis_values)],
+                upper_values[np.isfinite(upper_values)],
+                lower_values[np.isfinite(lower_values)],
+            ])
             axis.yaxis.set_major_formatter(
-                FuncFormatter(lambda value, _: format_price(value))
+                _compact_price_axis_formatter(axis_scale_values)
             )
+            axis.tick_params(axis="y", pad=2)
             axis.grid(alpha=0.12)
             axis.set_ylabel("")
 
             for spine in axis.spines.values():
                 spine.set_color("#475569")
 
-            figure.tight_layout(pad=0.8)
-            label_column, plot_column = st.columns(
-                [0.07, 0.93],
-                gap="small",
+            # 不再另外切一欄顯示「實際價格」，整張圖直接使用完整卡片寬度。
+            figure.tight_layout(pad=0.45)
+            st.pyplot(
+                figure,
+                use_container_width=True,
             )
-
-            with label_column:
-                st.markdown(
-                    "<div class='chart-y-label'><span>實</span><span>際</span><span>價</span><span>格</span></div>",
-                    unsafe_allow_html=True,
-                )
-            with plot_column:
-                st.pyplot(
-                    figure,
-                    use_container_width=True,
-                )
 
             plt.close(figure)
