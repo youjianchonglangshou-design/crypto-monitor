@@ -266,8 +266,9 @@ def score_hint(flags: dict, item: dict) -> int:
 # 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
 # v3：Purple-2 採 Active Right-V vs 20日左側結構V + Fib 0.618；不再逐段鏈式切換。
 
-OPPORTUNITY_ENGINE_VERSION = "OG v3.0｜DP2-FIB-0.618"
+OPPORTUNITY_ENGINE_VERSION = "OG v3.1｜DP2-FIB-0.618"
 PURPLE2_RULE_VERSION = "DP2-v3-active-right-vs-structural-left"
+ENGINE_API_VERSION = "opportunity-geometry-v3.1-dp2-fib"
 
 # 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
 # v2 重點：自適應中軌距離、真正中軌突破事件、Dynamic Purple-2 Anchor（V/V + Fib）。

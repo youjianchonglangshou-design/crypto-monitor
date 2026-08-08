@@ -17,13 +17,19 @@ import streamlit as st
 from get import build_snapshot_payload
 from ha_threshold import compute_threshold_from_daily_data
 from pattern_options import PATTERN_SORT_OPTIONS
-from scoring_rules import (
-    OPPORTUNITY_ENGINE_VERSION,
-    PURPLE2_RULE_VERSION,
-    build_long_opportunity,
-    build_pattern_flags,
-    classify_pattern,
-    score_hint,
+import scoring_rules as _scoring_engine
+
+EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.1-dp2-fib"
+ENGINE_API_VERSION = getattr(_scoring_engine, "ENGINE_API_VERSION", "legacy-or-missing")
+OPPORTUNITY_ENGINE_VERSION = getattr(_scoring_engine, "OPPORTUNITY_ENGINE_VERSION", "ENGINE-MISMATCH")
+PURPLE2_RULE_VERSION = getattr(_scoring_engine, "PURPLE2_RULE_VERSION", "P2-MISMATCH")
+build_long_opportunity = getattr(_scoring_engine, "build_long_opportunity", None)
+build_pattern_flags = getattr(_scoring_engine, "build_pattern_flags", None)
+classify_pattern = getattr(_scoring_engine, "classify_pattern", None)
+score_hint = getattr(_scoring_engine, "score_hint", None)
+ENGINE_FILES_SYNCED = (
+    ENGINE_API_VERSION == EXPECTED_ENGINE_API_VERSION
+    and all(callable(fn) for fn in (build_long_opportunity, build_pattern_flags, classify_pattern, score_hint))
 )
 from sector_config import get_sector_badge
 from symbols_config import SYMBOLS_CONFIG
@@ -36,6 +42,19 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+if not ENGINE_FILES_SYNCED:
+    st.error(
+        "⚠️ 引擎檔版本不同步｜UI 預期 OG v3.1，但 scoring_rules.py 是："
+        f"{ENGINE_API_VERSION}。請同時覆蓋 main.py、scoring_rules.py、get.py、pattern_options.py。"
+    )
+    st.code(
+        f"EXPECTED={EXPECTED_ENGINE_API_VERSION}\n"
+        f"LOADED={ENGINE_API_VERSION}\n"
+        f"DISPLAY={OPPORTUNITY_ENGINE_VERSION}\n"
+        f"P2={PURPLE2_RULE_VERSION}"
+    )
+    st.stop()
 
 st.markdown(
     '''

@@ -11,18 +11,24 @@ import numpy as np
 import pandas as pd
 
 from github_sync import sync_snapshot_to_github
-from scoring_rules import (
-    OPPORTUNITY_ENGINE_VERSION,
-    PURPLE2_RULE_VERSION,
-    build_long_opportunity,
-    build_pattern_flags,
-    classify_pattern,
-    score_hint,
+import scoring_rules as _scoring_engine
+
+EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.1-dp2-fib"
+ENGINE_API_VERSION = getattr(_scoring_engine, "ENGINE_API_VERSION", "legacy-or-missing")
+OPPORTUNITY_ENGINE_VERSION = getattr(_scoring_engine, "OPPORTUNITY_ENGINE_VERSION", "ENGINE-MISMATCH")
+PURPLE2_RULE_VERSION = getattr(_scoring_engine, "PURPLE2_RULE_VERSION", "P2-MISMATCH")
+build_long_opportunity = getattr(_scoring_engine, "build_long_opportunity", None)
+build_pattern_flags = getattr(_scoring_engine, "build_pattern_flags", None)
+classify_pattern = getattr(_scoring_engine, "classify_pattern", None)
+score_hint = getattr(_scoring_engine, "score_hint", None)
+ENGINE_FILES_SYNCED = (
+    ENGINE_API_VERSION == EXPECTED_ENGINE_API_VERSION
+    and all(callable(fn) for fn in (build_long_opportunity, build_pattern_flags, classify_pattern, score_hint))
 )
 from sector_config import SECTOR_TAGS
 
 TW_TZ = timezone(timedelta(hours=8))
-SCHEMA_VERSION = "crypto-monitor-ai-v5-opportunity-geometry-dp2-fib"
+SCHEMA_VERSION = "crypto-monitor-ai-v5.1-opportunity-geometry-dp2-fib"
 GROUP_LIMIT = 20
 
 CHART_SEMANTICS = {
