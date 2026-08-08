@@ -8,8 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
+import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
 import requests
@@ -251,38 +250,36 @@ def format_price(price: Any) -> str:
     return f"{value:.8f}"
 
 
-def _compact_price_axis_formatter(values: list[float] | np.ndarray):
-    """Return a TradingView-like compact formatter for very small prices.
+def _compact_price_axis_labels(
+    values: list[float] | np.ndarray,
+    tick_values: list[float] | np.ndarray,
+) -> list[str]:
+    """Return TradingView-like compact Y-axis labels.
 
     Example: 0.00000281 -> 0.28e-5.  Normal-priced assets keep the
-    existing decimal formatter.  The exponent is shared per chart so all
-    Y-axis ticks remain directly comparable.
+    existing decimal display.  One exponent is shared by the whole chart.
     """
     finite = np.asarray(values, dtype=float)
     finite = finite[np.isfinite(finite)]
     finite = np.abs(finite[finite != 0])
 
     if finite.size == 0:
-        return FuncFormatter(lambda value, _: format_price(value))
+        return [format_price(value) for value in tick_values]
 
     representative = float(np.median(finite))
-
-    # Only compact prices with a long leading-zero tail.  This keeps BTC,
-    # ETH, POL, etc. in the familiar normal-price display.
     if representative >= 0.0001:
-        return FuncFormatter(lambda value, _: format_price(value))
+        return [format_price(value) for value in tick_values]
 
     exponent = int(np.floor(np.log10(representative))) + 1
     scale = 10.0 ** exponent
-
-    def _format(value: float, _: int) -> str:
-        scaled = value / scale
+    labels: list[str] = []
+    for value in tick_values:
+        scaled = float(value) / scale
         text = f"{scaled:.2f}".rstrip("0").rstrip(".")
         if text == "-0":
             text = "0"
-        return f"{text}e{exponent}"
-
-    return FuncFormatter(_format)
+        labels.append(f"{text}e{exponent}")
+    return labels
 
 
 def calculate_heikin_ashi(klines: list[dict]) -> list[dict]:
@@ -1044,7 +1041,14 @@ for index, record in enumerate(plot_results):
             )
             st.markdown(title, unsafe_allow_html=True)
 
-            y_values = record["_ha_closes_last20"]
+            y_values = np.asarray(
+                record["_ha_closes_last20"],
+                dtype=float,
+            )
+            ha_open_values = np.asarray(
+                record["_ha_opens_last20"],
+                dtype=float,
+            )
             basis_values = np.asarray(
                 record.get("_bb_basis_series") or [],
                 dtype=float,
@@ -1057,155 +1061,190 @@ for index, record in enumerate(plot_results):
                 record.get("_bb_lower_series") or [],
                 dtype=float,
             )
-            x_values = list(range(len(y_values)))
-            figure, axis = plt.subplots(
-                figsize=(5.8, 2.9),
-                facecolor="#1e293b",
-            )
-            axis.set_facecolor("#1e293b")
+            x_values = [
+                datetime.fromtimestamp(
+                    timestamp / 1000,
+                    tz=timezone.utc,
+                )
+                for timestamp in record["_ha_times_last20"]
+            ]
 
-            # ── 布林帶：全部使用普通日 K close 計算，座標為實際價格 ──
+            figure = go.Figure()
+
+            # ── 布林帶：普通日 K close 計算，座標為實際價格 ──
             if len(basis_values) == len(x_values):
-                axis.plot(
-                    x_values,
-                    upper_values,
-                    color="#b8b8b8",
-                    linewidth=2.0,
-                    alpha=0.90,
-                    zorder=2,
-                )
-                axis.plot(
-                    x_values,
-                    basis_values,
-                    color="#8f9aa7",
-                    linewidth=1.45,
-                    linestyle="--",
-                    alpha=0.90,
-                    zorder=2,
-                )
-                axis.plot(
-                    x_values,
-                    lower_values,
-                    color="#b8b8b8",
-                    linewidth=2.0,
-                    alpha=0.90,
-                    zorder=2,
-                )
-                valid_band = (
-                    np.isfinite(upper_values)
-                    & np.isfinite(lower_values)
-                )
-                if valid_band.any():
-                    axis.fill_between(
-                        x_values,
-                        lower_values,
-                        upper_values,
-                        where=valid_band,
-                        color="#94a3b8",
-                        alpha=0.035,
-                        interpolate=True,
-                        zorder=1,
+                figure.add_trace(
+                    go.Scatter(
+                        x=x_values,
+                        y=upper_values,
+                        mode="lines",
+                        line=dict(color="#b8b8b8", width=2.0),
+                        opacity=0.90,
+                        hoverinfo="none",
+                        name="BB上軌",
                     )
+                )
+                figure.add_trace(
+                    go.Scatter(
+                        x=x_values,
+                        y=lower_values,
+                        mode="lines",
+                        line=dict(color="#b8b8b8", width=2.0),
+                        opacity=0.90,
+                        fill="tonexty",
+                        fillcolor="rgba(148,163,184,0.035)",
+                        hoverinfo="none",
+                        name="BB下軌",
+                    )
+                )
+                figure.add_trace(
+                    go.Scatter(
+                        x=x_values,
+                        y=basis_values,
+                        mode="lines",
+                        line=dict(
+                            color="#8f9aa7",
+                            width=1.45,
+                            dash="dash",
+                        ),
+                        opacity=0.90,
+                        hoverinfo="none",
+                        name="BB中軌",
+                    )
+                )
 
+            # ── HA 日線階梯：每一段依該根 HA 黃／紫著色 ──
             for line_index in range(len(y_values) - 1):
                 color = (
                     "#FFEB3B"
-                    if record["_ha_closes_last20"][line_index]
-                    > record["_ha_opens_last20"][line_index]
+                    if y_values[line_index] > ha_open_values[line_index]
                     else "#B39DDB"
                 )
-                axis.step(
-                    [x_values[line_index], x_values[line_index + 1]],
-                    [y_values[line_index], y_values[line_index + 1]],
-                    where="post",
-                    color=color,
-                    linewidth=2.3,
-                    zorder=5,
+                figure.add_trace(
+                    go.Scatter(
+                        x=[x_values[line_index], x_values[line_index + 1]],
+                        y=[y_values[line_index], y_values[line_index + 1]],
+                        mode="lines",
+                        line=dict(color=color, width=2.3, shape="hv"),
+                        hoverinfo="none",
+                        showlegend=False,
+                    )
                 )
 
             if x_values:
                 latest_color = (
                     "#FFEB3B"
-                    if record["_ha_closes_last20"][-1]
-                    > record["_ha_opens_last20"][-1]
+                    if y_values[-1] > ha_open_values[-1]
                     else "#B39DDB"
                 )
-                axis.plot(
-                    x_values[-1],
-                    y_values[-1],
-                    "o",
-                    color="white",
-                    markersize=8,
-                    zorder=7,
+                figure.add_trace(
+                    go.Scatter(
+                        x=[x_values[-1]],
+                        y=[y_values[-1]],
+                        mode="markers",
+                        marker=dict(
+                            size=9,
+                            color=latest_color,
+                            line=dict(color="white", width=2.2),
+                        ),
+                        hoverinfo="none",
+                        showlegend=False,
+                    )
                 )
-                axis.plot(
-                    x_values[-1],
-                    y_values[-1],
-                    "o",
-                    color=latest_color,
-                    markersize=5,
-                    zorder=8,
-                )
-                axis.text(
-                    x_values[-1] - 0.05,
-                    y_values[-1],
-                    f"  {record['_ha_curr_pct']:+.2f}%",
-                    ha="right",
-                    va="bottom",
-                    fontsize=8,
-                    color=latest_color,
+                figure.add_annotation(
+                    x=x_values[-1],
+                    y=float(y_values[-1]),
+                    text=f"{record['_ha_curr_pct']:+.2f}%",
+                    showarrow=False,
+                    xanchor="right",
+                    yanchor="bottom",
+                    xshift=-5,
+                    yshift=3,
+                    font=dict(size=10, color=latest_color),
                 )
 
-            labels = [
-                datetime.fromtimestamp(
-                    timestamp / 1000,
-                    tz=timezone.utc,
-                ).strftime("%m/%d")
-                for timestamp in record["_ha_times_last20"]
-            ]
-            ticks = list(
-                range(
-                    0,
-                    len(x_values),
-                    max(1, len(x_values) // 6),
-                )
-            )
-            axis.set_xticks(ticks)
-            axis.set_xticklabels(
-                [labels[tick] for tick in ticks],
-                rotation=45,
-                ha="right",
-                fontsize=7,
-                color="#94a3b8",
-            )
-            axis.tick_params(
-                axis="y",
-                labelsize=7,
-                colors="#94a3b8",
-            )
-            # 小數位非常深的幣種改用 TradingView 類似的 e-N 緊湊刻度，
-            # 例如 0.00000281 顯示為約 0.28e-5，避免 Y 軸吃掉繪圖寬度。
+            # ── 實價 Y 軸範圍與 TradingView 類似緊湊刻度 ──
             axis_scale_values = np.concatenate([
-                np.asarray(y_values, dtype=float),
+                y_values[np.isfinite(y_values)],
                 basis_values[np.isfinite(basis_values)],
                 upper_values[np.isfinite(upper_values)],
                 lower_values[np.isfinite(lower_values)],
             ])
-            axis.yaxis.set_major_formatter(
-                _compact_price_axis_formatter(axis_scale_values)
+            if axis_scale_values.size:
+                y_min = float(np.min(axis_scale_values))
+                y_max = float(np.max(axis_scale_values))
+                y_span = y_max - y_min
+                if y_span <= 0:
+                    y_span = max(abs(y_max) * 0.08, 1e-12)
+                y_pad = y_span * 0.055
+                y_range = [y_min - y_pad, y_max + y_pad]
+                y_ticks = np.linspace(y_range[0], y_range[1], 6)
+                y_ticktext = _compact_price_axis_labels(
+                    axis_scale_values,
+                    y_ticks,
+                )
+            else:
+                y_range = None
+                y_ticks = None
+                y_ticktext = None
+
+            figure.update_layout(
+                height=290,
+                margin=dict(l=4, r=5, t=2, b=4),
+                paper_bgcolor="#1e293b",
+                plot_bgcolor="#1e293b",
+                showlegend=False,
+                hovermode="closest",
+                hoverdistance=-1,
+                dragmode=False,
+                font=dict(color="#94a3b8"),
             )
-            axis.tick_params(axis="y", pad=2)
-            axis.grid(alpha=0.12)
-            axis.set_ylabel("")
+            figure.update_xaxes(
+                showgrid=True,
+                gridcolor="rgba(148,163,184,0.12)",
+                zeroline=False,
+                showline=True,
+                linecolor="#475569",
+                tickfont=dict(size=9, color="#94a3b8"),
+                tickformat="%m/%d",
+                nticks=7,
+                tickangle=-45,
+                fixedrange=True,
+                # TradingView 類似十字游標：垂直虛線跟著滑鼠。
+                showspikes=True,
+                spikecolor="rgba(226,232,240,0.78)",
+                spikethickness=1,
+                spikedash="dash",
+                spikemode="across",
+                spikesnap="cursor",
+            )
+            figure.update_yaxes(
+                showgrid=True,
+                gridcolor="rgba(148,163,184,0.12)",
+                zeroline=False,
+                showline=True,
+                linecolor="#475569",
+                tickfont=dict(size=9, color="#94a3b8"),
+                tickvals=y_ticks,
+                ticktext=y_ticktext,
+                range=y_range,
+                fixedrange=True,
+                # TradingView 類似十字游標：水平虛線跟著滑鼠。
+                showspikes=True,
+                spikecolor="rgba(226,232,240,0.78)",
+                spikethickness=1,
+                spikedash="dash",
+                spikemode="across",
+                spikesnap="cursor",
+            )
 
-            for spine in axis.spines.values():
-                spine.set_color("#475569")
-
-            # 不再另外切一欄顯示「實際價格」，整張圖直接使用完整卡片寬度。
-            figure.tight_layout(pad=0.45)
-            st.pyplot(
+            st.plotly_chart(
                 figure,
                 use_container_width=True,
+                config={
+                    "displayModeBar": False,
+                    "scrollZoom": False,
+                    "responsive": True,
+                },
+                key=f"ha_bb_chart_{record['幣種']}_{index}",
             )
-
-            plt.close(figure)
