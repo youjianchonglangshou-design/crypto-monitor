@@ -15,7 +15,7 @@ from scoring_rules import build_long_opportunity, build_pattern_flags, classify_
 from sector_config import SECTOR_TAGS
 
 TW_TZ = timezone(timedelta(hours=8))
-SCHEMA_VERSION = "crypto-monitor-ai-v3-long-opportunity"
+SCHEMA_VERSION = "crypto-monitor-ai-v4-dynamic-purple2"
 GROUP_LIMIT = 20
 
 CHART_SEMANTICS = {
@@ -39,9 +39,12 @@ CHART_SEMANTICS = {
         "scope": "long-side entry opportunity only; short-side scoring is intentionally not enabled",
         "stars": "1-5 measures entry opportunity/freshness, NOT bullish trend strength",
         "T0": "latest HA still purple; wait for yellow",
-        "T1": "yellow appeared but has not exceeded the second-last purple HA step",
-        "T2": "yellow appeared and exceeded the second-last purple HA step",
-        "midline_regime": "rising / flat / flattening / falling based on recent 5d slope and prior 5d deceleration",
+        "T1": "yellow appeared but has not exceeded the active Dynamic Purple-2",
+        "T2": "yellow appeared and exceeded the active Dynamic Purple-2",
+        "midline_regime": "rising / flat / flattening / falling from recent 5d midline slope; rising threshold is intentionally sensitive to visual upward tilt",
+        "near_midline": "adaptive by BB band position around 0.5, not a fixed +/- price percentage",
+        "breakout": "requires a real below-to-above midline crossing (or left-censored evidence when the 20d window starts already above) plus a meaningful upper-half push; deep breakdown invalidates the old wave",
+        "dynamic_purple2": "split purple runs into V structures; compare left low -> yellow swing high -> right low with Fibonacci retracement. Right V needs its own Purple-2; <=0.618 retracement can reset to the higher right V, >0.618 keeps the left V, new lower low resets right when eligible",
         "one_star_note": "one star is not failure; it can mean mature expansion / do-not-chase or otherwise poor long entry timing",
     },
 }
@@ -524,6 +527,10 @@ def _build_breadth(records: list[dict[str, Any]]) -> dict[str, Any]:
             "real_price_below": below,
             "real_price_at": at_midline,
             "real_price_near_3pct": sum(1 for r in records if r.get("bb_pct") is not None and abs(r.get("bb_pct") or 0) <= 3),
+            "ha_near_midline_adaptive": sum(
+                1 for r in records
+                if bool(((r.get("opportunity_long", {}) or {}).get("current", {}) or {}).get("near_midline"))
+            ),
         },
     }
 
@@ -565,6 +572,20 @@ def _build_groups(records: list[dict[str, Any]]) -> dict[str, list[str]]:
             records,
             lambda r: bool(((r.get("opportunity_long", {}) or {}).get("maturity", {}) or {}).get("mature_bull_expansion"))
             or bool(((r.get("opportunity_long", {}) or {}).get("maturity", {}) or {}).get("mature_bear_expansion")),
+        ),
+        "natural_midline_attack": _ranked_symbols(records, setup_ids(7)),
+        "moved_away_from_midline_sweet_zone": _ranked_symbols(
+            records,
+            lambda r: "離開中軌甜蜜區" in str((r.get("opportunity_long", {}) or {}).get("setup_name", ""))
+            or "剩餘肉量下降" in str((r.get("opportunity_long", {}) or {}).get("structure_state", "")),
+        ),
+        "dynamic_purple2_left_anchor": _ranked_symbols(
+            records,
+            lambda r: ((r.get("opportunity_long", {}) or {}).get("purple_structure", {}) or {}).get("anchor_source") == "prior_left_v",
+        ),
+        "dynamic_purple2_right_anchor": _ranked_symbols(
+            records,
+            lambda r: ((r.get("opportunity_long", {}) or {}).get("purple_structure", {}) or {}).get("anchor_source") == "active_right_v",
         ),
         "midline_long_friendly": _ranked_symbols(
             records,

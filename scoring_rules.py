@@ -262,14 +262,26 @@ def score_hint(flags: dict, item: dict) -> int:
     elif gg: score += 8
     return min(75, int(score))
 
-# ==================== Opportunity Geometry（做多機會掃描） ====================
+# ==================== Opportunity Geometry（做多機會掃描 v2） ====================
 # 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
-# 因此成熟多頭與成熟空頭都可能只有 ★：前者不追漲，後者不追跌也不摸底。
+# v2 重點：自適應中軌距離、真正中軌突破事件、Dynamic Purple-2 Anchor（V/V + Fib）。
 
-LONG_NEAR_MIDLINE_PCT = 3.0
-LONG_BREAKOUT_PCT = 2.5
-MIDLINE_FLAT_SLOPE_PCT_PER_DAY = 0.25
+MIDLINE_RISING_SLOPE_PCT_PER_DAY = 0.12
+MIDLINE_FLAT_FLOOR_PCT_PER_DAY = -0.25
 MIDLINE_FLATTENING_MAX_FALL_PCT_PER_DAY = -0.65
+MIDLINE_FLATTENING_IMPROVEMENT_MIN = 0.12
+
+# 不再固定用「距中軌 ±3%」。0.5 是中軌；以下用每顆幣自己的 BB 寬度正規化。
+MIDLINE_NEAR_BANDPOS_DISTANCE = 0.18       # 約 band_pos 0.32 ~ 0.68
+MIDLINE_SWEET_UPPER_BANDPOS = 0.68
+MIDLINE_ALREADY_MOVED_BANDPOS = 0.85
+MATURE_UPPER_BANDPOS = 0.88
+MATURE_LOWER_BANDPOS = 0.14
+
+BREAKOUT_CONFIRM_BANDPOS = 0.72
+BREAKOUT_INVALIDATE_BANDPOS = 0.15
+RETEST_FAKE_BREAK_BANDPOS = 0.32
+FIB_RIGHT_V_RESET_MAX = 0.618
 
 
 def _opportunity_points(r: dict) -> list[dict[str, Any]]:
@@ -303,13 +315,12 @@ def _opportunity_points(r: dict) -> list[dict[str, Any]]:
     count = min(20, len(opens), len(closes), len(pcts), len(mids), len(uppers), len(lowers))
     if count <= 0:
         return []
-    starts = [len(opens)-count, len(closes)-count, len(pcts)-count, len(mids)-count, len(uppers)-count, len(lowers)-count]
-    opens = opens[starts[0]:]
-    closes = closes[starts[1]:]
-    pcts = pcts[starts[2]:]
-    mids = mids[starts[3]:]
-    uppers = uppers[starts[4]:]
-    lowers = lowers[starts[5]:]
+    opens = opens[-count:]
+    closes = closes[-count:]
+    pcts = pcts[-count:]
+    mids = mids[-count:]
+    uppers = uppers[-count:]
+    lowers = lowers[-count:]
     times = times[-count:] if times else list(range(count))
 
     out = []
@@ -367,13 +378,14 @@ def _midline_regime(points: list[dict[str, Any]]) -> dict[str, Any]:
     previous_slope = _slope_pct_per_day(previous) if len(previous) >= 2 else recent_slope
     improvement = recent_slope - previous_slope
 
-    if recent_slope >= MIDLINE_FLAT_SLOPE_PCT_PER_DAY:
+    # BNB 這類肉眼明顯微微上斜，不再被 +0.25%/日硬切成平緩。
+    if recent_slope >= MIDLINE_RISING_SLOPE_PCT_PER_DAY:
         state, symbol, label = "rising", "↑", "上斜"
-    elif recent_slope > -MIDLINE_FLAT_SLOPE_PCT_PER_DAY:
+    elif recent_slope > MIDLINE_FLAT_FLOOR_PCT_PER_DAY:
         state, symbol, label = "flat", "→", "平緩"
     elif (
         recent_slope >= MIDLINE_FLATTENING_MAX_FALL_PCT_PER_DAY
-        and previous_slope < recent_slope - 0.18
+        and improvement >= MIDLINE_FLATTENING_IMPROVEMENT_MIN
     ):
         state, symbol, label = "flattening", "↘", "下降走平中"
     else:
@@ -400,39 +412,297 @@ def _run_start(points: list[dict[str, Any]], end_idx: int) -> int:
     return idx
 
 
-def _purple_reference(points: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """倒數第2個紫階梯：以目前黃階前一段紫 run；若目前仍紫則用目前紫 run。"""
-    if not points:
-        return None
-    last = len(points) - 1
-    latest_color = points[last].get("color")
-    if latest_color == "yellow":
-        y_start = _run_start(points, last)
-        p_end = y_start - 1
-        if p_end < 0 or points[p_end].get("color") != "purple":
-            return None
-        p_start = _run_start(points, p_end)
-        purple_run = points[p_start:p_end+1]
-    elif latest_color == "purple":
-        p_start = _run_start(points, last)
-        purple_run = points[p_start:last+1]
-    else:
-        return None
+def _near_midline(point: dict[str, Any]) -> bool:
+    """用 BB 幾何距離而非固定百分比判斷是否貼近中軌。"""
+    return abs(_f(point.get("band_pos"), 0.5) - 0.5) <= MIDLINE_NEAR_BANDPOS_DISTANCE
 
-    if not purple_run:
+
+def _purple_runs(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    runs: list[dict[str, Any]] = []
+    i = 0
+    run_id = 0
+    while i < len(points):
+        if points[i].get("color") != "purple":
+            i += 1
+            continue
+        start = i
+        while i + 1 < len(points) and points[i+1].get("color") == "purple":
+            i += 1
+        end = i
+        indices = list(range(start, end + 1))
+        # 同價最低點採第一個，避免平台底最後一根讓「紫2」變得過度容易。
+        low_idx = min(indices, key=lambda j: (_f(points[j].get("close")), j))
+        p2_idx = low_idx - 1 if low_idx > start and points[low_idx-1].get("color") == "purple" else None
+        runs.append({
+            "run_id": run_id,
+            "start": start,
+            "end": end,
+            "length": end - start + 1,
+            "low_idx": low_idx,
+            "low_price": _f(points[low_idx].get("close")),
+            "low_pct": _f(points[low_idx].get("pct")),
+            "purple2_idx": p2_idx,
+            "eligible_purple2": p2_idx is not None,
+        })
+        run_id += 1
+        i += 1
+    return runs
+
+
+def _active_purple_run_id(points: list[dict[str, Any]], runs: list[dict[str, Any]]) -> int | None:
+    if not runs:
         return None
-    ref = purple_run[-2] if len(purple_run) >= 2 else purple_run[-1]
+    latest_idx = len(points) - 1
+    if points[latest_idx].get("color") == "purple":
+        for run in reversed(runs):
+            if run["end"] == latest_idx:
+                return int(run["run_id"])
+    # 最新是黃：取目前黃 run 前一段紫作為右 V。
+    if points[latest_idx].get("color") == "yellow":
+        y_start = _run_start(points, latest_idx)
+        for run in reversed(runs):
+            if run["end"] < y_start:
+                return int(run["run_id"])
+    return int(runs[-1]["run_id"])
+
+
+def _point_ref(points: list[dict[str, Any]], idx: int | None) -> dict[str, Any] | None:
+    if idx is None or idx < 0 or idx >= len(points):
+        return None
+    p = points[idx]
     return {
-        "date": ref.get("date"),
-        "index": int(ref.get("index", 0)),
-        "ha_price": _round(ref.get("close"), 10),
-        "pct_vs_midline": _round(ref.get("pct"), 6),
-        "reference_quality": "second_last_purple" if len(purple_run) >= 2 else "single_purple_fallback",
-        "purple_run_length": len(purple_run),
+        "date": p.get("date"),
+        "index": int(idx),
+        "ha_price": _round(p.get("close"), 10),
+        "pct_vs_midline": _round(p.get("pct"), 6),
+        "band_position": _round(p.get("band_pos"), 6),
     }
 
 
+def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
+    """Dynamic Purple-2 Anchor。
+
+    規則：
+    1) 以連續紫色 run 拆成 V。
+    2) 右 V 只有一階，沒有自己的紫2 -> 沿用左側有效紫2。
+    3) 右 V 破左 V -> 新 Lower Low，若有紫2就切到右 V。
+    4) 右 V 抬高：用左低 L -> 中間最高黃 H -> 右低 R 的 Fib 回撤。
+       回撤 <= 0.618 視為已建立新的 Higher Low 價格層，切右 V；
+       回撤 > 0.618 視為仍在原底部/雙V範圍，沿用左 V。
+    """
+    runs = _purple_runs(points)
+    active_id = _active_purple_run_id(points, runs)
+    if not runs or active_id is None:
+        return {
+            "active_purple2": None,
+            "anchor_reason": "no_purple_run",
+            "anchor_source": "none",
+            "fib_retracement": None,
+        }
+
+    active_runs = [r for r in runs if int(r["run_id"]) <= active_id]
+    all_purple_indices = [i for i, p in enumerate(points) if p.get("color") == "purple"]
+    structural_low_idx = min(all_purple_indices, key=lambda j: (_f(points[j].get("close")), j)) if all_purple_indices else None
+
+    anchor_low_run = active_runs[0]
+    ref_run = anchor_low_run if anchor_low_run.get("eligible_purple2") else None
+    decisions: dict[int, dict[str, Any]] = {}
+
+    for cand in active_runs[1:]:
+        prev_anchor = anchor_low_run
+        bridge_points = points[int(prev_anchor["low_idx"])+1:int(cand["start"])]
+        yellow_bridge = [p for p in bridge_points if p.get("color") == "yellow"]
+        bridge_high = max((_f(p.get("close")) for p in yellow_bridge), default=None)
+        bridge_high_idx = None
+        if yellow_bridge:
+            candidates = [i for i in range(int(prev_anchor["low_idx"])+1, int(cand["start"])) if points[i].get("color") == "yellow"]
+            if candidates:
+                bridge_high_idx = max(candidates, key=lambda i: _f(points[i].get("close")))
+
+        left_low = _f(prev_anchor.get("low_price"))
+        right_low = _f(cand.get("low_price"))
+        fib = None
+        relation = "same_basin"
+        reason = "deep_retracement_keep_left"
+        switched = False
+
+        if right_low <= left_low:
+            relation = "lower_low"
+            anchor_low_run = cand
+            if cand.get("eligible_purple2"):
+                ref_run = cand
+                switched = True
+                reason = "right_v_new_lower_low"
+            else:
+                reason = "right_v_new_lower_low_but_no_purple2_fallback_left"
+        elif bridge_high is not None and bridge_high > left_low + 1e-18:
+            fib = (bridge_high - right_low) / (bridge_high - left_low)
+            if cand.get("eligible_purple2") and fib <= FIB_RIGHT_V_RESET_MAX:
+                relation = "higher_low_reset"
+                anchor_low_run = cand
+                ref_run = cand
+                switched = True
+                reason = "right_v_higher_low_above_fib_0618"
+            elif not cand.get("eligible_purple2"):
+                relation = "higher_low_insufficient_purple"
+                reason = "right_v_insufficient_purple_fallback_left"
+            else:
+                relation = "same_basin_deep_retrace"
+                reason = "right_v_below_fib_0618_keep_left"
+        else:
+            if not cand.get("eligible_purple2"):
+                relation = "insufficient_bridge_or_purple"
+                reason = "right_v_insufficient_purple_fallback_left"
+            else:
+                relation = "no_valid_yellow_bridge"
+                reason = "no_valid_bridge_keep_left"
+
+        decisions[int(cand["run_id"])] = {
+            "left_run_id": int(prev_anchor["run_id"]),
+            "right_run_id": int(cand["run_id"]),
+            "left_low_price": _round(left_low, 10),
+            "right_low_price": _round(right_low, 10),
+            "bridge_yellow_days": len(yellow_bridge),
+            "bridge_high_price": _round(bridge_high, 10) if bridge_high is not None else None,
+            "bridge_high_index": bridge_high_idx,
+            "fib_retracement": _round(fib, 6) if fib is not None else None,
+            "relation": relation,
+            "switched_anchor": switched,
+            "reason": reason,
+        }
+
+    active_run = next((r for r in active_runs if int(r["run_id"]) == active_id), active_runs[-1])
+    active_decision = decisions.get(active_id, {})
+    p2_idx = int(ref_run["purple2_idx"]) if ref_run and ref_run.get("purple2_idx") is not None else None
+    p2 = _point_ref(points, p2_idx)
+    if p2:
+        p2.update({
+            "reference_quality": "dynamic_purple2",
+            "purple_run_length": int(ref_run.get("length", 0)),
+            "anchor_run_id": int(ref_run.get("run_id", -1)),
+        })
+
+    fib_value = active_decision.get("fib_retracement")
+    if fib_value is None:
+        fib_zone = "unavailable"
+    elif fib_value < 0:
+        fib_zone = "above_swing_high"
+    elif fib_value < 0.5:
+        fib_zone = "shallow_lt_0_5"
+    elif fib_value <= 0.618:
+        fib_zone = "golden_0_5_0_618"
+    else:
+        fib_zone = "deep_gt_0_618"
+
+    anchor_source = "active_right_v" if ref_run and int(ref_run.get("run_id", -1)) == active_id else "prior_left_v"
+    anchor_reason = active_decision.get("reason") or (
+        "first_available_purple_anchor" if ref_run else "no_valid_purple2"
+    )
+
+    return {
+        "structural_low": _point_ref(points, structural_low_idx),
+        "active_swing_low": _point_ref(points, int(active_run.get("low_idx", 0))),
+        "anchor_low": _point_ref(points, int(anchor_low_run.get("low_idx", 0))),
+        "active_purple2": p2,
+        "anchor_source": anchor_source,
+        "anchor_reason": anchor_reason,
+        "active_right_run_id": int(active_id),
+        "active_right_purple_count": int(active_run.get("length", 0)),
+        "active_right_has_own_purple2": bool(active_run.get("eligible_purple2")),
+        "low_relation": active_decision.get("relation", "first_or_single_structure"),
+        "fib_retracement": fib_value,
+        "fib_zone": fib_zone,
+        "fib_threshold": FIB_RIGHT_V_RESET_MAX,
+        "bridge_yellow_days": int(active_decision.get("bridge_yellow_days", 0) or 0),
+        "bridge_high_price": active_decision.get("bridge_high_price"),
+        "all_purple_runs": [
+            {
+                "run_id": int(x["run_id"]),
+                "start": int(x["start"]),
+                "end": int(x["end"]),
+                "length": int(x["length"]),
+                "low": _point_ref(points, int(x["low_idx"])),
+                "purple2": _point_ref(points, x.get("purple2_idx")),
+            }
+            for x in active_runs
+        ],
+    }
+
+
+def _breakout_context(points: list[dict[str, Any]]) -> dict[str, Any]:
+    """找真正的『由中軌下穿到中軌上』波段；若 20 日左緣已在上方，允許 left-censored 推定。"""
+    if len(points) < 4:
+        return {"confirmed": False}
+
+    crossings: list[tuple[int, str]] = []
+    # 20 日視窗可能剛好從已突破後開始；只有早段確實在上半部才允許推定。
+    if _f(points[0].get("band_pos"), 0.5) >= 0.5:
+        crossings.append((0, "left_censored"))
+    for i in range(1, len(points)):
+        prev_pos = _f(points[i-1].get("band_pos"), 0.5)
+        cur_pos = _f(points[i].get("band_pos"), 0.5)
+        if prev_pos < 0.5 <= cur_pos and _f(points[i].get("close")) >= _f(points[i-1].get("close")):
+            crossings.append((i, "actual_cross"))
+
+    candidates = []
+    for cross_idx, cross_type in crossings:
+        search_end = len(points) - 1
+        peak_idx = max(range(cross_idx, search_end + 1), key=lambda i: _f(points[i].get("band_pos"), 0.5))
+        peak_pos = _f(points[peak_idx].get("band_pos"), 0.5)
+        confirm_threshold = 0.80 if cross_type == "left_censored" else BREAKOUT_CONFIRM_BANDPOS
+        if peak_pos < confirm_threshold:
+            continue
+        after_peak = points[peak_idx+1:]
+        min_pos = min((_f(p.get("band_pos"), 0.5) for p in after_peak), default=peak_pos)
+        min_idx = None
+        if after_peak:
+            min_idx = peak_idx + 1 + min(range(len(after_peak)), key=lambda j: _f(after_peak[j].get("band_pos"), 0.5))
+        invalidated = bool(after_peak and min_pos < BREAKOUT_INVALIDATE_BANDPOS)
+        near_retest = any(_near_midline(p) for p in after_peak)
+        candidates.append({
+            "cross_index": cross_idx,
+            "cross_type": cross_type,
+            "cross_date": points[cross_idx].get("date"),
+            "peak_index": peak_idx,
+            "peak_date": points[peak_idx].get("date"),
+            "peak_band_position": _round(peak_pos),
+            "peak_pct_vs_midline": _round(points[peak_idx].get("pct")),
+            "pullback_min_band_position": _round(min_pos),
+            "pullback_min_index": min_idx,
+            "pullback_near_midline": bool(near_retest),
+            "cycle_invalidated": invalidated,
+        })
+
+    valid = [c for c in candidates if not c.get("cycle_invalidated")]
+    if not valid:
+        return {
+            "confirmed": False,
+            "cross_type": "none",
+            "pullback_near_midline": False,
+            "cycle_invalidated": bool(candidates),
+            "candidates": candidates,
+        }
+
+    # 取最近形成的有效高點波段；避免很早以前的突破永遠綁住現在。
+    chosen = max(valid, key=lambda c: (int(c.get("peak_index", -1)), int(c.get("cross_index", -1))))
+    latest_pos = _f(points[-1].get("band_pos"), 0.5)
+    min_pos = _f(chosen.get("pullback_min_band_position"), 0.5)
+    chosen = dict(chosen)
+    chosen.update({
+        "confirmed": True,
+        "retest_normal": bool(chosen.get("pullback_near_midline") and min_pos >= RETEST_FAKE_BREAK_BANDPOS),
+        "retest_fake_break": bool(
+            chosen.get("pullback_near_midline")
+            and BREAKOUT_INVALIDATE_BANDPOS <= min_pos < RETEST_FAKE_BREAK_BANDPOS
+            and latest_pos >= 0.5
+        ),
+        "bars_since_peak": len(points) - 1 - int(chosen.get("peak_index", len(points)-1)),
+    })
+    return chosen
+
+
 def _failed_reclaim_attempts(points: list[dict[str, Any]], lookback: int = 12) -> int:
+    """只作弱勢輔助：黃 run 未吃掉該紫 run 的『最低紫前一紫』，之後又轉紫。"""
     start_limit = max(0, len(points) - lookback)
     failures = 0
     i = start_limit
@@ -447,21 +717,38 @@ def _failed_reclaim_attempts(points: list[dict[str, Any]], lookback: int = 12) -
         p_end = y_start - 1
         if p_end >= 0 and points[p_end].get("color") == "purple":
             p_start = _run_start(points, p_end)
-            purple_run = points[p_start:p_end+1]
-            if purple_run:
-                ref = purple_run[-2] if len(purple_run) >= 2 else purple_run[-1]
-                max_yellow = max(_f(p.get("close")) for p in points[y_start:y_end+1])
-                if max_yellow < _f(ref.get("close")):
-                    # 只有之後又回紫才算一次「反彈未過紫2」。
-                    if y_end + 1 < len(points) and points[y_end+1].get("color") == "purple":
-                        failures += 1
+            run_indices = list(range(p_start, p_end + 1))
+            low_idx = min(run_indices, key=lambda j: _f(points[j].get("close"))) if run_indices else None
+            ref_idx = low_idx - 1 if low_idx is not None and low_idx > p_start else None
+            if ref_idx is not None:
+                max_yellow = max(_f(points[j].get("close")) for j in range(y_start, y_end+1))
+                if max_yellow < _f(points[ref_idx].get("close")) and y_end + 1 < len(points) and points[y_end+1].get("color") == "purple":
+                    failures += 1
         i += 1
     return failures
 
 
+def _first_midline_test(points: list[dict[str, Any]], latest: dict[str, Any], breakout: dict[str, Any]) -> bool:
+    if breakout.get("confirmed"):
+        return False
+    if not _near_midline(latest):
+        return False
+    recent = points[-12:]
+    offset = len(points) - len(recent)
+    low_local = min(range(len(recent)), key=lambda i: _f(recent[i].get("band_pos"), 0.5))
+    low_idx = offset + low_local
+    low_pos = _f(points[low_idx].get("band_pos"), 0.5)
+    if low_pos > 0.25:
+        return False
+    # 前低後尚未真正站到明顯的中軌上方，視為第一次攻均衡區的同一段過程。
+    after_low_before_latest = points[low_idx+1:-1]
+    already_broke = any(_f(p.get("band_pos"), 0.5) >= 0.58 for p in after_low_before_latest)
+    return not already_broke
+
+
 def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) -> dict[str, Any]:
-    """做多機會星級。只評估『現在是否值得等/進多』，不評估空方進場。"""
-    del ladder_history  # 保留呼叫介面，幾何判斷直接使用 20 日實價序列。
+    """做多機會星級 v2。只評估『現在是否值得等/進多』，不評估空方進場。"""
+    del ladder_history
     points = _opportunity_points(r)
     if len(points) < 6:
         return {
@@ -481,42 +768,17 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
     latest_color = latest.get("color")
     latest_pct = _f(latest.get("pct"))
     latest_pos = _f(latest.get("band_pos"), 0.5)
+    below_now = latest_pos < 0.5
     midline = _midline_regime(points)
     mid_friendly = bool(midline.get("long_friendly"))
-    near_now = abs(latest_pct) <= LONG_NEAR_MIDLINE_PCT
-    below_now = latest_pct < 0
+    near_now = _near_midline(latest)
 
     current_start = _run_start(points, latest_idx)
     current_run = points[current_start:]
     current_run_length = len(current_run)
 
-    # 找目前黃 run 前面的紫回踩；若目前仍紫，就把目前紫 run 視為回踩。
-    if latest_color == "yellow":
-        pullback_end = current_start - 1
-        if pullback_end >= 0 and points[pullback_end].get("color") == "purple":
-            pullback_start = _run_start(points, pullback_end)
-            pullback_run = points[pullback_start:pullback_end+1]
-        else:
-            pullback_start = current_start
-            pullback_run = []
-    elif latest_color == "purple":
-        pullback_start = current_start
-        pullback_run = current_run
-    else:
-        pullback_start = current_start
-        pullback_run = []
-
-    search_before = points[:pullback_start]
-    breakout_candidates = [p for p in search_before if (_f(p.get("pct")) >= LONG_BREAKOUT_PCT or _f(p.get("band_pos"), 0.5) >= 0.70)]
-    had_breakout = bool(breakout_candidates)
-    last_breakout = breakout_candidates[-1] if breakout_candidates else None
-    bars_since_breakout = latest_idx - int(last_breakout.get("index")) if last_breakout else None
-    recent_breakout = bool(had_breakout and bars_since_breakout is not None and bars_since_breakout <= 14)
-    prior_peak_pct = max((_f(p.get("pct")) for p in search_before), default=-999.0)
-    pullback_near = bool(pullback_run and any(abs(_f(p.get("pct"))) <= LONG_NEAR_MIDLINE_PCT for p in pullback_run))
-    pullback_dipped_below = bool(pullback_run and min(_f(p.get("pct")) for p in pullback_run) < 0)
-
-    purple2 = _purple_reference(points)
+    purple_structure = _dynamic_purple_structure(points)
+    purple2 = purple_structure.get("active_purple2")
     purple2_pass_price = False
     purple2_pass_relative = False
     purple2_gap_pct = None
@@ -525,7 +787,7 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
         ref_price = _f(purple2.get("ha_price"))
         ref_pct = _f(purple2.get("pct_vs_midline"))
         if abs(ref_price) > 1e-18:
-            purple2_gap_pct = (latest.get("close") - ref_price) / abs(ref_price) * 100.0
+            purple2_gap_pct = (_f(latest.get("close")) - ref_price) / abs(ref_price) * 100.0
             purple2_pass_price = purple2_gap_pct >= 0
         purple2_gap_relative = latest_pct - ref_pct
         purple2_pass_relative = purple2_gap_relative >= 0
@@ -537,36 +799,28 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
     else:
         stage = "T0"
 
-    # T2 第一次發生在哪一天，提供新鮮度。
+    # 新鮮度從「目前有效 Purple-2」建立後第一次被黃階吃掉算起，不因一根新黃而重置。
     trigger_idx = None
-    if stage == "T2" and purple2 and latest_color == "yellow":
-        y_start = _run_start(points, latest_idx)
+    if stage == "T2" and purple2:
         ref_price = _f(purple2.get("ha_price"))
-        for idx in range(y_start, latest_idx + 1):
-            if _f(points[idx].get("close")) >= ref_price:
+        ref_idx = int(purple2.get("index", 0))
+        for idx in range(ref_idx + 1, latest_idx + 1):
+            if points[idx].get("color") == "yellow" and _f(points[idx].get("close")) >= ref_price:
                 trigger_idx = idx
                 break
     trigger_days_ago = latest_idx - trigger_idx if trigger_idx is not None else None
     trigger_date = points[trigger_idx].get("date") if trigger_idx is not None else None
 
-    last6 = points[-6:]
-    near_count_6 = sum(abs(_f(p.get("pct"))) <= LONG_NEAR_MIDLINE_PCT for p in last6)
-    transitions_6 = sum(a.get("color") != b.get("color") for a, b in zip(last6, last6[1:]))
-    midline_chop = near_count_6 >= 4 and transitions_6 >= 2
+    breakout = _breakout_context(points)
+    wave3_retest = bool(breakout.get("confirmed") and breakout.get("pullback_near_midline"))
+    normal_retest = bool(breakout.get("retest_normal"))
+    fake_break_retest = bool(breakout.get("retest_fake_break"))
 
-    # 前低以來第一次摸中軌：最近10日先有明顯低點，之後直到現在很少碰到均衡區。
-    recent10 = points[-10:]
-    local_offset = max(0, len(points) - len(recent10))
-    low_local = min(range(len(recent10)), key=lambda i: _f(recent10[i].get("close")))
-    low_idx = local_offset + low_local
-    low_point = points[low_idx]
-    after_low_before_latest = points[low_idx+1:latest_idx]
-    prior_touch_count = sum(abs(_f(p.get("pct"))) <= 1.2 for p in after_low_before_latest)
-    first_touch_midline = bool(
-        near_now
-        and (_f(low_point.get("pct")) <= -3.0 or _f(low_point.get("band_pos"), 0.5) <= 0.25)
-        and prior_touch_count <= 1
-    )
+    last6 = points[-6:]
+    near_count_6 = sum(_near_midline(p) for p in last6)
+    transitions_6 = sum(a.get("color") != b.get("color") for a, b in zip(last6, last6[1:]))
+    midline_chop = bool(near_count_6 >= 4 and transitions_6 >= 2)
+    first_touch_midline = _first_midline_test(points, latest, breakout)
 
     widths = [_f(p.get("width")) for p in points]
     sorted_widths = sorted(widths)
@@ -576,17 +830,12 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
     squeeze = bool(
         current_width <= q25 * 1.08
         and mid_friendly
-        and abs(latest_pct) <= 4.0
+        and near_now
         and recent_width_change <= 5.0
     )
 
     recent_min_pos = min((_f(p.get("band_pos"), 0.5) for p in points[-10:]), default=0.5)
-    recent_min_pct = min((_f(p.get("pct")) for p in points[-10:]), default=0.0)
-    lower_band_spring = bool((recent_min_pos <= 0.05 or recent_min_pct <= -6.0) and stage == "T2")
-    fake_break_reclaim = bool(
-        recent_breakout and pullback_dipped_below and stage == "T2" and latest_pct >= 0 and mid_friendly
-    )
-
+    lower_band_spring = bool(recent_min_pos <= 0.05 and stage == "T2")
     failed_attempts = _failed_reclaim_attempts(points, 12)
 
     last5 = points[-5:]
@@ -594,14 +843,12 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
     purple5 = sum(p.get("color") == "purple" for p in last5)
     mature_bull = bool(
         yellow5 >= 4
-        and latest_pct >= 7.0
-        and latest_pos >= 0.80
+        and latest_pos >= MATURE_UPPER_BANDPOS
         and midline.get("state") == "rising"
     )
     mature_bear = bool(
         purple5 >= 4
-        and latest_pct <= -5.0
-        and latest_pos <= 0.22
+        and latest_pos <= MATURE_LOWER_BANDPOS
         and midline.get("state") in {"falling", "flattening"}
     )
 
@@ -611,122 +858,122 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
     stars = 1
     reasons: list[str] = []
 
-    # ★ 不代表失敗，而是「目前不是好的追價/摸底位置」。
+    # 先判「已經跑掉」與成熟單邊；★不是失敗，是不追。
     if mature_bull:
         setup_name = "成熟多頭擴張／不追"
         structure = "成熟多頭擴張"
         stars = 1
-        reasons.append("連續黃階且已高乖離，屬已發動區，不追漲")
+        reasons.append("黃階長時間位於布林上半高位，屬已發動行情，不追漲")
     elif mature_bear:
         setup_name = "成熟空頭擴張／不摸底"
         structure = "成熟空頭擴張"
         stars = 1
-        reasons.append("連續紫階且遠離中軌，屬已發動下跌，不追跌也不急摸底")
-    elif fake_break_reclaim and near_now:
+        reasons.append("紫階長時間位於布林下半低位，屬已發動下跌，不追跌也不急摸底")
+
+    # 第一套：真正突破中軌 -> 回踩中軌；中軌向上/平緩時等待第3浪。
+    elif wave3_retest and fake_break_retest and stage == "T2" and mid_friendly and near_now:
         setup_id = 9
-        setup_name = "回踩中軌假跌破收復"
-        structure = "第3浪候選｜假跌破後收復"
+        setup_name = "突破後回踩｜假跌破中軌再收復"
+        structure = "第3浪候選｜假跌破收復"
         stars = 5
-        reasons.append("曾突破中軌，回踩跌破後以黃階重新收復且勝紫2")
-    elif recent_breakout and pullback_near and stage == "T2" and mid_friendly and abs(latest_pct) <= 4.0:
+        reasons.append("前波是真實中軌突破，回踩曾略破均衡後已重新收復 Purple-2")
+    elif wave3_retest and normal_retest and stage == "T2" and mid_friendly and near_now:
         setup_id = 3
-        setup_name = "突破中軌回踩｜黃階勝紫2"
+        setup_name = "突破中軌回踩｜黃階勝 Purple-2"
         structure = "第3浪候選｜回踩確認"
         stars = 5
-        reasons.append("曾突破中軌，回踩中軌後黃階已勝倒數第2紫")
-    elif lower_band_spring and midline.get("state") in {"rising", "flat"}:
-        setup_id = 11
-        setup_name = "下軌假跌破回收｜黃階勝紫2"
-        structure = "底部Spring｜先看中軌"
-        stars = 5
-        reasons.append("近期觸及/跌破下軌後回收，且中軌已平或上斜")
-    elif below_now and stage == "T2" and midline.get("state") in {"rising", "flat"}:
-        setup_id = 5
-        setup_name = "中軌下反轉｜黃階勝紫2"
-        structure = "中軌下提前反轉｜先看中軌"
-        stars = 5
-        reasons.append("仍在中軌下，但黃階已勝紫2且中軌沒有下壓")
-    elif lower_band_spring and midline.get("state") == "flattening":
-        setup_id = 11
-        setup_name = "下軌回收｜中軌走平中"
-        structure = "底部Spring｜等待均衡改善"
-        stars = 4
-        reasons.append("下軌反轉成立，但中軌仍帶輕微下降慣性")
-    elif recent_breakout and pullback_near and near_now and stage == "T1" and mid_friendly:
+        reasons.append("前波真實突破中軌，回踩仍屬同一波且黃階已勝有效 Purple-2")
+    elif wave3_retest and stage == "T1" and mid_friendly and near_now:
         setup_id = 2
-        setup_name = "突破中軌回踩｜已轉黃待勝紫2"
+        setup_name = "突破中軌回踩｜已轉黃待勝 Purple-2"
         structure = "第3浪候選｜確認中"
         stars = 4
-        reasons.append("回踩位置成立，已轉黃但尚未超越倒數第2紫")
+        reasons.append("回踩中軌位置成立，已轉黃但尚未吃掉有效 Purple-2")
+    elif wave3_retest and stage == "T0" and mid_friendly and near_now:
+        setup_id = 1
+        setup_name = "突破中軌回踩｜仍紫等待轉黃"
+        structure = "第3浪候選｜等待轉色"
+        stars = 3
+        reasons.append("前波真實突破中軌，目前紫階回到自適應中軌甜蜜區，等待轉黃")
+
+    # 第二套：中軌下反轉；Purple-2 以 V/V + Fib 動態決定。
+    elif lower_band_spring and stage == "T2" and midline.get("state") in {"rising", "flat"}:
+        setup_id = 11
+        setup_name = "下軌 Spring｜黃階勝 Purple-2"
+        structure = "底部反轉｜先看中軌"
+        stars = 5
+        reasons.append("近期觸及/跌破下軌後反轉，且有效 Purple-2 已被吃掉")
+    elif below_now and stage == "T2" and midline.get("state") in {"rising", "flat"} and near_now:
+        setup_id = 5
+        setup_name = "中軌下反轉｜黃階勝 Purple-2"
+        structure = "提前反轉｜準備攻中軌"
+        stars = 5
+        reasons.append("仍在中軌下方，但已勝動態 Purple-2，且中軌不下壓")
+    elif below_now and stage == "T2" and midline.get("state") == "flattening" and near_now:
+        setup_id = 5
+        setup_name = "中軌下反轉｜中軌快速走平"
+        structure = "提前反轉｜等待均衡改善"
+        stars = 4
+        reasons.append("黃階已勝 Purple-2，但中軌仍留少量下降慣性")
+    elif below_now and stage == "T2" and midline.get("state") == "falling":
+        setup_id = 4
+        setup_name = "中軌下反轉｜但中軌仍下斜"
+        structure = "逆勢反彈｜上方仍有動態壓力"
+        stars = 2
+        reasons.append("黃階雖勝 Purple-2，但中軌仍明顯向下")
+
+    # 中軌附近磨合 / 壓縮 / 前低後第一次自然攻中軌。
     elif squeeze:
         setup_id = 10
         setup_name = "極限壓縮待爆"
         structure = "BB壓縮｜等待方向脫離"
         stars = 4
-        reasons.append("BB寬度接近20日低檔，中軌不下斜且階梯仍靠近均衡")
-    elif recent_breakout and pullback_near and near_now and stage == "T0" and mid_friendly:
-        setup_id = 1
-        setup_name = "突破中軌回踩｜仍紫等待轉黃"
-        structure = "第3浪候選｜等待轉色"
-        stars = 3
-        reasons.append("曾突破中軌，目前紫階回踩中軌且中軌可承接")
-    elif midline_chop and stage in {"T1", "T2"} and midline.get("state") == "flat":
-        setup_id = 6
-        setup_name = "中軌附近糾纏｜等待明顯脫離"
-        structure = "中軌壓縮磨合"
-        stars = 3
-        reasons.append("多日於中軌附近糾纏，中軌平緩，等待自然突破")
-    elif first_touch_midline and stage in {"T1", "T2"} and midline.get("state") == "flat":
-        setup_id = 7
-        setup_name = "前低後首次測中軌"
-        structure = "首次測均衡｜等待自然突破"
-        stars = 3
-        reasons.append("自近期低點反彈後首次測試平緩中軌")
-    elif below_now and stage == "T2" and midline.get("state") == "falling":
-        setup_id = 4
-        setup_name = "中軌下反轉｜但中軌仍下斜"
-        structure = "逆勢反彈｜上方仍有中軌壓力"
-        stars = 2
-        reasons.append("黃階雖勝紫2，但下降中軌仍是動態壓力")
-    elif latest_color == "purple" and below_now and failed_attempts >= 1 and midline.get("state") in {"falling", "flat", "flattening"}:
-        setup_id = 8
-        setup_name = "下行延續｜反彈多次未過紫2"
-        structure = "反彈未扭轉階梯"
-        stars = 1
-        reasons.append("曾有黃階反彈，但未能吃掉紫2後再度轉紫")
+        reasons.append("BB寬度位於20日低檔，且階梯仍貼近自適應中軌區")
     elif first_touch_midline and mid_friendly:
         setup_id = 7
-        setup_name = "前低後首次測中軌｜等待"
-        structure = "首次測均衡"
+        setup_name = "前低後首次攻中軌"
+        structure = "自然突破候選"
+        stars = 3 if stage != "T2" else 4
+        reasons.append("近期低點後首次回到中軌甜蜜區，尚未形成完整突破回踩")
+    elif midline_chop and midline.get("state") == "flat":
+        setup_id = 6
+        setup_name = "中軌附近糾纏"
+        structure = "均衡壓縮｜等待自然脫離"
+        stars = 3 if stage == "T0" else 4 if stage == "T1" else 3
+        reasons.append("多日於中軌附近反覆磨合，中軌平緩，等待真正脫離")
+
+    # 有黃階但還在中軌下；若 Purple-2 尚未吃掉，只列等待，不硬升星。
+    elif below_now and stage == "T1" and mid_friendly and near_now:
+        setup_id = 5
+        setup_name = "中軌下已轉黃｜待勝 Purple-2"
+        structure = "提前反轉｜尚未觸發"
         stars = 3
-        reasons.append("前低後已推回中軌附近，但尚缺自然突破證據")
-    elif stage == "T2" and below_now and midline.get("state") == "flattening":
-        setup_name = "中軌下反轉｜中軌走平中"
-        structure = "提前反轉｜等待中軌鈍化完成"
+        reasons.append("已轉黃但尚未勝動態 Purple-2，先不視為正式反轉")
+
+    # 已經離開中軌甜蜜區：就算 T2 成立也降低星級，BNB 類不再五星。
+    elif stage == "T2" and mid_friendly and latest_pos > MIDLINE_SWEET_UPPER_BANDPOS:
+        setup_name = "轉強後已離開中軌甜蜜區"
+        structure = "剩餘肉量下降"
+        stars = 3 if latest_pos < MIDLINE_ALREADY_MOVED_BANDPOS else 1
+        reasons.append("Purple-2 已被吃掉，但 HA 已走離中軌；星級依 BB 相對位置降級")
+    elif stage == "T2" and mid_friendly and near_now:
+        setup_name = "一般轉強確認"
+        structure = "均衡附近轉強"
         stars = 4
-        reasons.append("黃階已勝紫2，中軌下降速度正在明顯鈍化")
-    elif near_now and stage == "T0" and mid_friendly:
-        setup_name = "中軌附近等待轉黃"
-        structure = "均衡附近等待"
-        stars = 3
-        reasons.append("階梯靠近中軌且中軌不下斜，等待黃階證據")
-    elif near_now and stage == "T1" and mid_friendly:
-        setup_name = "中軌附近已轉黃｜待勝紫2"
-        structure = "均衡附近確認中"
-        stars = 4
-        reasons.append("已轉黃且靠近中軌，但尚未勝紫2")
-    elif stage == "T2" and mid_friendly and abs(latest_pct) <= 5.0:
-        setup_name = "一般黃階勝紫2"
-        structure = "轉強確認"
-        stars = 4
-        reasons.append("黃階已勝紫2且中軌沒有明顯下壓")
+        reasons.append("已勝 Purple-2 且中軌友善，但不屬明確 Wave-3 回踩")
+    elif latest_color == "purple" and below_now and failed_attempts >= 1 and midline.get("state") in {"falling", "flat", "flattening"}:
+        setup_id = 8
+        setup_name = "紫階延續｜前次反彈未勝 Purple-2"
+        structure = "反彈尚未扭轉"
+        stars = 1
+        reasons.append("先前黃色反彈未能吃掉有效 Purple-2，之後又回紫")
     else:
         setup_name = "非理想做多位置"
         structure = "等待新的幾何機會"
         stars = 1
-        reasons.append("目前不符合高報酬風險比的提前進場結構")
+        reasons.append("目前不符合提前進場或第3浪回踩條件")
 
-    # 五星只保留給「剛發生」的 T2；太久或已經拉遠就降級。
+    # Trigger 新鮮度：只對 4/5 星做降級；Purple-2 若沿用左V且早已被突破，不會被今天新黃誤判成『今日觸發』。
     freshness = "not_triggered"
     if trigger_days_ago is not None:
         if trigger_days_ago == 0:
@@ -736,22 +983,28 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
         else:
             freshness = f"{trigger_days_ago}d_ago"
         if stars == 5 and trigger_days_ago >= 2:
-            stars = 4 if abs(latest_pct) <= 4.0 and latest_pos <= 0.78 else 3
-            reasons.append("T2已非新鮮觸發，依距中軌/通道位置降級避免追價")
+            stars = 4 if near_now else 3
+            reasons.append("目前有效 Purple-2 早已被突破，非新鮮觸發，降級避免追價")
+        elif stars == 4 and setup_id in {2, 3, 5, 9, 11} and trigger_days_ago >= 4:
+            stars = 3
+            reasons.append("Trigger 已過多日，機會新鮮度下降")
 
-    # 已離中軌太遠的任何高星 setup 都再壓低，避免 ADA 類成熟行情混入。
-    if stars >= 4 and (abs(latest_pct) >= 8.0 or latest_pos >= 0.88):
-        stars = 2 if latest_pct < 0 else 1
-        structure = "成熟多頭擴張" if latest_pct > 0 else structure
-        setup_name = "成熟擴張／不追" if latest_pct > 0 else setup_name
-        reasons.append("目前已遠離中軌/逼近上軌，機會星級降為不追區")
+    # 最終自適應剩餘肉量上限；不用固定 +3/+8%。
+    if stars >= 4 and latest_pos >= MIDLINE_ALREADY_MOVED_BANDPOS:
+        stars = 1
+        setup_name = "成熟擴張／不追"
+        structure = "已離開中軌甜蜜區"
+        reasons.append("HA 已接近/進入上軌區，剩餘肉量不足，不追漲")
+    elif stars >= 4 and latest_pos > MIDLINE_SWEET_UPPER_BANDPOS:
+        stars = 3
+        reasons.append("HA 已離開中軌甜蜜區，雖然結構轉強但剩餘空間下降")
 
     star_labels = {
-        5: "觸發進場區",
-        4: "臨界確認區",
-        3: "結構等待區",
-        2: "逆勢反轉區",
-        1: "非追價區",
+        5: "高機會｜新鮮觸發",
+        4: "高機會｜臨界確認",
+        3: "觀察｜結構等待",
+        2: "逆勢｜條件較弱",
+        1: "不追｜等待新結構",
     }
     stars_text = "★" * stars + "☆" * (5 - stars)
 
@@ -763,6 +1016,8 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
             "passed_by_actual_ha_price": bool(purple2_pass_price),
             "passed_by_midline_relative_pct": bool(purple2_pass_relative),
         })
+    purple_structure = dict(purple_structure)
+    purple_structure["active_purple2"] = purple2
 
     return {
         "stars": int(stars),
@@ -774,8 +1029,8 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
         "trigger_stage": stage,
         "trigger_stage_meaning": {
             "T0": "目前仍紫，等待轉黃",
-            "T1": "已轉黃，但尚未超越倒數第2紫",
-            "T2": "已轉黃，且已超越倒數第2紫",
+            "T1": "已轉黃，但尚未超越動態 Purple-2",
+            "T2": "已轉黃，且已超越動態 Purple-2",
         }.get(stage, "unknown"),
         "midline": midline,
         "current": {
@@ -784,17 +1039,31 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
             "ha_vs_midline_pct": _round(latest_pct),
             "ha_band_position": _round(latest_pos),
             "near_midline": bool(near_now),
+            "midline_band_distance": _round(abs(latest_pos - 0.5), 6),
             "current_color_run_length": int(current_run_length),
         },
         "prior_breakout": {
-            "had_breakout_before_pullback": bool(had_breakout),
-            "recent_within_14d": bool(recent_breakout),
-            "bars_since_last_breakout": bars_since_breakout,
-            "prior_peak_pct_vs_midline": _round(prior_peak_pct),
-            "pullback_near_midline": bool(pullback_near),
-            "pullback_dipped_below_midline": bool(pullback_dipped_below),
+            "confirmed_midline_cross": bool(breakout.get("confirmed")),
+            "cross_type": breakout.get("cross_type", "none"),
+            "cross_date": breakout.get("cross_date"),
+            "cross_index": breakout.get("cross_index"),
+            "peak_date": breakout.get("peak_date"),
+            "peak_index": breakout.get("peak_index"),
+            "peak_band_position": breakout.get("peak_band_position"),
+            "prior_peak_pct_vs_midline": breakout.get("peak_pct_vs_midline"),
+            "pullback_near_midline": bool(breakout.get("pullback_near_midline")),
+            "pullback_min_band_position": breakout.get("pullback_min_band_position"),
+            "retest_normal": bool(breakout.get("retest_normal")),
+            "retest_fake_break": bool(breakout.get("retest_fake_break")),
+            "cycle_invalidated": bool(breakout.get("cycle_invalidated")),
+            # 舊欄位別名保留，避免 UI/舊分析直接斷掉。
+            "had_breakout_before_pullback": bool(breakout.get("confirmed")),
+            "recent_within_14d": bool(breakout.get("confirmed")),
+            "bars_since_last_breakout": breakout.get("bars_since_peak"),
+            "pullback_dipped_below_midline": bool(_f(breakout.get("pullback_min_band_position"), 0.5) < 0.5) if breakout.get("confirmed") else False,
         },
         "purple2_reference": purple2,
+        "purple_structure": purple_structure,
         "trigger_freshness": {
             "status": freshness,
             "trigger_date": trigger_date,
@@ -805,11 +1074,15 @@ def build_long_opportunity(r: dict, ladder_history: list[dict] | None = None) ->
             "first_touch_midline_from_recent_low": bool(first_touch_midline),
             "extreme_squeeze": bool(squeeze),
             "lower_band_spring": bool(lower_band_spring),
-            "fake_break_reclaim": bool(fake_break_reclaim),
+            "fake_break_reclaim": bool(fake_break_retest and stage == "T2"),
             "failed_reclaim_attempts_last12d": int(failed_attempts),
             "band_width_pct": _round(current_width),
             "band_width_20d_q25_pct": _round(q25),
             "band_width_recent5_change_pct": _round(recent_width_change),
+            "near_midline_bandpos_range": [
+                _round(0.5 - MIDLINE_NEAR_BANDPOS_DISTANCE, 3),
+                _round(0.5 + MIDLINE_NEAR_BANDPOS_DISTANCE, 3),
+            ],
         },
         "maturity": {
             "mature_bull_expansion": bool(mature_bull),

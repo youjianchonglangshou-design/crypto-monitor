@@ -743,11 +743,12 @@ def filter_and_sort(
     elif option.startswith("結構："):
         keyword = option.split("：", 1)[1]
         keyword_map = {
-            "回踩中軌": {1, 2, 3, 9},
+            "Wave3回踩中軌": {1, 2, 3, 9},
             "中軌下反轉": {4, 5, 11},
+            "自然攻中軌": {7},
             "中軌附近糾纏": {6},
-            "首次測中軌": {7},
             "極限壓縮待爆": {10},
+            "已離開中軌甜蜜區": {0},
             "成熟擴張／不追": set(),
         }
         if keyword == "成熟擴張／不追":
@@ -755,6 +756,12 @@ def filter_and_sort(
                 x for x in filtered
                 if bool(((x.get("_long_opportunity") or {}).get("maturity") or {}).get("mature_bull_expansion"))
                 or bool(((x.get("_long_opportunity") or {}).get("maturity") or {}).get("mature_bear_expansion"))
+            ]
+        elif keyword == "已離開中軌甜蜜區":
+            filtered = [
+                x for x in filtered
+                if "離開中軌甜蜜區" in str((x.get("_long_opportunity") or {}).get("setup_name", ""))
+                or "剩餘肉量下降" in str((x.get("_long_opportunity") or {}).get("structure_state", ""))
             ]
         else:
             ids = keyword_map.get(keyword, set())
@@ -812,8 +819,14 @@ def geometry_badges(record: dict[str, Any]) -> str:
     stage = html.escape(str(opp.get("trigger_stage", "T0")))
     mid_text = html.escape(f"中軌 {mid.get('symbol','?')} {mid.get('label','未知')}")
     p2 = opp.get("purple2_reference") or {}
+    pstruct = opp.get("purple_structure") or {}
     gap = p2.get("current_gap_price_pct")
-    p2_text = "紫2 —" if gap is None else (f"紫2 {float(gap):+.2f}%")
+    anchor = pstruct.get("anchor_source")
+    anchor_text = "右V" if anchor == "active_right_v" else "左V" if anchor == "prior_left_v" else ""
+    p2_text = "Purple-2 —" if gap is None else f"Purple-2{anchor_text} {float(gap):+.2f}%"
+    fib = pstruct.get("fib_retracement")
+    fib_text = "" if fib is None else f"｜Fib {float(fib):.3f}"
+    p2_text += fib_text
     p2_color = "#fde047" if gap is not None and float(gap) >= 0 else "#c4b5fd"
     stage_color = {"T2":"#fde047", "T1":"#60a5fa", "T0":"#c4b5fd"}.get(stage, "#cbd5e1")
     return (
@@ -1229,7 +1242,7 @@ for index, record in enumerate(plot_results):
                 figure.add_annotation(
                     x=x_values[ref_idx],
                     y=float(purple2_price),
-                    text="紫2",
+                    text="P2",
                     showarrow=False,
                     xanchor="left",
                     yanchor="bottom",
