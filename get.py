@@ -13,7 +13,7 @@ import pandas as pd
 from github_sync import sync_snapshot_to_github
 import scoring_rules as _scoring_engine
 
-EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.2-dp2-struct-fib"
+EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.3-dp2-gen-fib-1236"
 ENGINE_API_VERSION = getattr(_scoring_engine, "ENGINE_API_VERSION", "legacy-or-missing")
 OPPORTUNITY_ENGINE_VERSION = getattr(_scoring_engine, "OPPORTUNITY_ENGINE_VERSION", "ENGINE-MISMATCH")
 PURPLE2_RULE_VERSION = getattr(_scoring_engine, "PURPLE2_RULE_VERSION", "P2-MISMATCH")
@@ -28,7 +28,7 @@ ENGINE_FILES_SYNCED = (
 from sector_config import SECTOR_TAGS
 
 TW_TZ = timezone(timedelta(hours=8))
-SCHEMA_VERSION = "crypto-monitor-ai-v5.2-opportunity-geometry-dp2-struct-fib"
+SCHEMA_VERSION = "crypto-monitor-ai-v5.3-opportunity-geometry-dp2-gen-fib-1236"
 GROUP_LIMIT = 20
 
 CHART_SEMANTICS = {
@@ -37,6 +37,7 @@ CHART_SEMANTICS = {
     "price_axis": "actual_price",
     "bb_formula": "ordinary_daily_close_SMA20_plus_minus_2_population_std",
     "ha_ladder": "daily_heikin_ashi_open_close; yellow=close>open, purple=close<open",
+    "real_daily_candle": "ordinary daily OHLC aligned 1:1 with each HA/BB point; used for structural 1.236 invalidation",
     "ha_vs_midline_pct": "(HA_close-BB_midline)/BB_midline*100",
     "band_width_pct": "(BB_upper-BB_lower)/abs(BB_midline)*100",
     "ha_band_position": "0=lower_band, 0.5=band_center, 1=upper_band; values may be <0 or >1",
@@ -57,7 +58,8 @@ CHART_SEMANTICS = {
         "midline_regime": "rising / flat / flattening / falling from recent 5d midline slope; rising threshold is intentionally sensitive to visual upward tilt",
         "near_midline": "adaptive by BB band position around 0.5, not a fixed +/- price percentage",
         "breakout": "requires a real below-to-above midline crossing (or left-censored evidence when the 20d window starts already above) plus a meaningful upper-half push; deep breakdown invalidates the old wave",
-        "dynamic_purple2": "v4: first establish whether L/R are truly two separate V structures in the same structural generation. A single purple run is L, not R. A meaningful move from upper-midline regime to materially below the midline resets the active V as a new L. Only then use Fib <=0.618 to allow a Higher-Low right V; deep retrace keeps left V.",
+        "dynamic_purple2": "v5: Fib does not create a V. A bridge must first beat the left Purple-2; upper-to-lower midline generation breaks reset to L; Coffee/Higher-Low uses <=0.618; W may have a slightly lower right V only up to 1.236. If HA or real daily K-line extension exceeds 1.236, the old W is invalid and the current leg becomes a new L.",
+        "purple2_self_audit": "R is forbidden unless it has its own Purple-2, a qualified bridge, no structural generation break, and structural extension <=1.236.",
         "engine_version": OPPORTUNITY_ENGINE_VERSION,
         "purple2_rule_version": PURPLE2_RULE_VERSION,
         "one_star_note": "one star is not failure; it can mean mature expansion / do-not-chase or otherwise poor long entry timing",
@@ -235,6 +237,10 @@ def _build_chart_20d(record: dict[str, Any]) -> list[dict[str, Any]]:
     uppers = list(record.get("_bb_upper_series") or [])
     lowers = list(record.get("_bb_lower_series") or [])
     percentages = list(record.get("_ha_pct_series") or [])
+    raw_opens = list(record.get("_raw_opens_last20") or [])
+    raw_highs = list(record.get("_raw_highs_last20") or [])
+    raw_lows = list(record.get("_raw_lows_last20") or [])
+    raw_closes = list(record.get("_raw_closes_last20") or [])
 
     count = min(
         20,
@@ -255,6 +261,10 @@ def _build_chart_20d(record: dict[str, Any]) -> list[dict[str, Any]]:
     uppers = uppers[-count:]
     lowers = lowers[-count:]
     percentages = percentages[-count:] if percentages else []
+    raw_opens = raw_opens[-count:] if len(raw_opens) >= count else []
+    raw_highs = raw_highs[-count:] if len(raw_highs) >= count else []
+    raw_lows = raw_lows[-count:] if len(raw_lows) >= count else []
+    raw_closes = raw_closes[-count:] if len(raw_closes) >= count else []
 
     output: list[dict[str, Any]] = []
     for index in range(count):
@@ -302,6 +312,10 @@ def _build_chart_20d(record: dict[str, Any]) -> list[dict[str, Any]]:
                 "ha_vs_midline_pct": _round(ha_vs_midline, 6),
                 "band_width_pct": _round(bandwidth_pct, 6),
                 "ha_band_position": _round(band_position, 6),
+                "real_open": _round(raw_opens[index]) if raw_opens else None,
+                "real_high": _round(raw_highs[index]) if raw_highs else None,
+                "real_low": _round(raw_lows[index]) if raw_lows else None,
+                "real_close": _round(raw_closes[index]) if raw_closes else None,
             }
         )
     return output

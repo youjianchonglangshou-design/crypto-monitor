@@ -19,7 +19,7 @@ from ha_threshold import compute_threshold_from_daily_data
 from pattern_options import PATTERN_SORT_OPTIONS
 import scoring_rules as _scoring_engine
 
-EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.2-dp2-struct-fib"
+EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.3-dp2-gen-fib-1236"
 ENGINE_API_VERSION = getattr(_scoring_engine, "ENGINE_API_VERSION", "legacy-or-missing")
 OPPORTUNITY_ENGINE_VERSION = getattr(_scoring_engine, "OPPORTUNITY_ENGINE_VERSION", "ENGINE-MISMATCH")
 PURPLE2_RULE_VERSION = getattr(_scoring_engine, "PURPLE2_RULE_VERSION", "P2-MISMATCH")
@@ -45,7 +45,7 @@ st.set_page_config(
 
 if not ENGINE_FILES_SYNCED:
     st.error(
-        "⚠️ 引擎檔版本不同步｜UI 預期 OG v3.2，但 scoring_rules.py 是："
+        "⚠️ 引擎檔版本不同步｜UI 預期 OG v3.3，但 scoring_rules.py 是："
         f"{ENGINE_API_VERSION}。請同時覆蓋 main.py、scoring_rules.py、get.py、pattern_options.py。"
     )
     st.code(
@@ -510,6 +510,7 @@ def analyze_symbol(symbol: str):
         abs_dev = abs(bb_pct)
 
         last_20 = daily_ha[-20:]
+        raw_last_20 = daily_raw[-20:]
         raw_closes = [item["close"] for item in daily_raw]
         percentages = []
         band_basis_series = []
@@ -586,6 +587,11 @@ def analyze_symbol(symbol: str):
             "_ha_opens_last20": [item["open"] for item in last_20],
             "_ha_closes_last20": [item["close"] for item in last_20],
             "_ha_times_last20": [item["time"] for item in last_20],
+            # 結構世代判斷同時保留真實日K，讓 1.236 失效規則可看見 wick/body 的真實跌破。
+            "_raw_opens_last20": [item["open"] for item in raw_last_20],
+            "_raw_highs_last20": [item["high"] for item in raw_last_20],
+            "_raw_lows_last20": [item["low"] for item in raw_last_20],
+            "_raw_closes_last20": [item["close"] for item in raw_last_20],
             "_ha4h_color_series": four_h_colors,
             "_ha_threshold": threshold,
         }
