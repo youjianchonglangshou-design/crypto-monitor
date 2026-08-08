@@ -267,9 +267,9 @@ def score_hint(flags: dict, item: dict) -> int:
 # 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
 # v3.3：Purple-2 先做結構世代，再做 L/R；Coffee 用 0.618，W 失效用 1.236，並加入真實日K structural break。
 
-OPPORTUNITY_ENGINE_VERSION = "OG v3.3｜DP2-GEN-FIB-1.236"
-PURPLE2_RULE_VERSION = "DP2-v5-generation-invariants-fib"
-ENGINE_API_VERSION = "opportunity-geometry-v3.3-dp2-gen-fib-1236"
+OPPORTUNITY_ENGINE_VERSION = "OG v3.5｜DP2-STATE-FIB-ZONES"
+PURPLE2_RULE_VERSION = "DP2-v7-state-machine-fib-zones"
+ENGINE_API_VERSION = "opportunity-geometry-v3.5-dp2-state-fib-zones"
 
 # 星級只代表「現在還有多少做多進場價值」，不是趨勢強弱。
 # v2 重點：自適應中軌距離、真正中軌突破事件、Dynamic Purple-2 Anchor（V/V + Fib）。
@@ -289,7 +289,10 @@ MATURE_LOWER_BANDPOS = 0.14
 BREAKOUT_CONFIRM_BANDPOS = 0.72
 BREAKOUT_INVALIDATE_BANDPOS = 0.15
 RETEST_FAKE_BREAK_BANDPOS = 0.32
-FIB_RIGHT_V_RESET_MAX = 0.618
+FIB_CUP_RIGHT_MIN = 0.000
+FIB_CUP_RIGHT_MAX = 0.618
+FIB_W_RIGHT_MIN = 1.000
+FIB_W_RIGHT_MAX = 1.236
 FIB_W_GENERATION_MAX = 1.236
 
 
@@ -664,8 +667,62 @@ def _pair_fib_metrics(
     }
 
 
+def _fib_role_zone(ha_fib: float | None) -> str:
+    """人眼等價的非單調 Fib 分區。
+
+    同一結構世代、且已先證明真的存在兩個獨立 V 時：
+    - 0.000~0.618：Higher-Low / Cup 右 V（越小代表右 V 抬得越高）
+    - 0.618~1.000：太深，不掛在舊 L 後面，重新視為 L
+    - 1.000~1.236：W 底右腳，可略破左 V
+    - >1.236：舊結構失效，重新視為 L
+    Fib 不負責創造 V，也不能跨越中軌結構世代 Reset。
+    """
+    if ha_fib is None or not math.isfinite(ha_fib):
+        return "unavailable"
+    if ha_fib < 0:
+        # 右側低點已高過中間 swing high，已不是正常回撤 V；交回結構世代邏輯處理。
+        return "above_swing_high"
+    if ha_fib <= FIB_CUP_RIGHT_MAX:
+        return "higher_low_R_0_0_618"
+    if ha_fib < FIB_W_RIGHT_MIN:
+        return "middle_0_618_1_0_new_L"
+    if ha_fib <= FIB_W_RIGHT_MAX:
+        return "W_R_1_0_1_236"
+    return "generation_break_gt_1_236"
+
+
+def _upward_midline_generation_reset(
+    points: list[dict[str, Any]],
+    left_run: dict[str, Any],
+    right_run: dict[str, Any],
+    bridge: dict[str, Any],
+) -> bool:
+    """
+    下方舊 V 已被一段真正的黃色推升帶過中軌，而新的紫 V 仍守在中軌上方：
+    這是中軌上方的新價格世代，右邊這個 V 應重新命名為 L。
+    """
+    left_low_idx = int(left_run.get("low_idx", 0))
+    right_low_idx = int(right_run.get("low_idx", 0))
+    left_bp = _f(points[left_low_idx].get("band_pos"), 0.5)
+    right_bp = _f(points[right_low_idx].get("band_pos"), 0.5)
+    bridge_high_idx = bridge.get("bridge_high_idx")
+    if bridge_high_idx is None:
+        return False
+    bridge_high_bp = _f(points[int(bridge_high_idx)].get("band_pos"), 0.5)
+    return bool(
+        left_bp < 0.5
+        and bridge_high_bp >= STRUCT_UPPER_ZONE_BANDPOS
+        and right_bp >= 0.5
+        and bridge.get("bridge_qualified")
+    )
+
+
 def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
-    """DP2-v5：先做結構世代，再談 L/R；Fib 不能創造 V，只能驗證已成立的 V。"""
+    """DP2-v7：先切結構世代與 V 資格，再用 Fib 判 L/R。
+
+    R 的有效區：0~0.618（Higher Low）與 1.0~1.236（W 右腳）。
+    0.618~1.0 與 >1.236 都重新視為 L；中軌世代 Reset 優先於 Fib。
+    """
     runs = _purple_runs(points)
     active_id = _active_purple_run_id(points, runs)
     if not runs or active_id is None:
@@ -742,16 +799,28 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
         ha_fib = fibm.get("ha_fib_retracement")
 
         decision = "keep_left"
+        upward_midline_generation = _upward_midline_generation_reset(points, anchor, curr, bridge)
+        fib_role_zone = _fib_role_zone(ha_fib)
+
         if cross_midline_generation:
-            # 中軌上下已是不同價格世代，新的低點從 L 重新開始。
+            # 舊世代在中軌上方，新的 V 已跌到中軌下方：重新從 L 開始。
             anchor = curr
             anchor_side = "L"
-            relation = "new_generation_midline_break"
-            anchor_reason = "midline_generation_break_reset_as_new_left"
-            decision = "reset_L_midline"
-            generation_resets.append({"run_id": int(curr["run_id"]), "reason": "midline_break"})
+            relation = "new_generation_midline_break_down"
+            anchor_reason = "downward_midline_generation_reset_as_new_left"
+            decision = "reset_L_midline_down"
+            generation_resets.append({"run_id": int(curr["run_id"]), "reason": "midline_break_down"})
+        elif upward_midline_generation:
+            # DOT 類：舊 L 在中軌下，黃階已穿越並建立中軌上方價格層；
+            # 第一個守在中軌上方的新紫 V 是新世代 L，不再掛在舊 L 後面當 R。
+            anchor = curr
+            anchor_side = "L"
+            relation = "new_generation_midline_break_up"
+            anchor_reason = "upward_midline_generation_reset_as_new_left"
+            decision = "reset_L_midline_up"
+            generation_resets.append({"run_id": int(curr["run_id"]), "reason": "midline_break_up"})
         elif extension_break:
-            # W 右腳若跌穿 1.236，就已不是右 V，而是新一代左 V。
+            # HA 或真實 K 任一跌穿 1.236，舊 W 結構失效。
             anchor = curr
             anchor_side = "L"
             relation = "new_generation_beyond_1_236"
@@ -759,7 +828,7 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
             decision = "reset_L_1.236"
             generation_resets.append({"run_id": int(curr["run_id"]), "reason": "fib_gt_1_236"})
         elif not bridge.get("bridge_qualified"):
-            # 黃色只是雜訊/反彈失敗，不能憑顏色切換就創造 R。
+            # 中間黃色沒有真正吃掉左 V 的 Purple-2，只是雜訊；不能創造 R。
             if right_low < left_low:
                 anchor = curr
                 anchor_side = "L"
@@ -771,31 +840,36 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
                 relation = "unqualified_bridge_keep_left"
                 anchor_reason = "bridge_did_not_beat_left_purple2_keep_left"
                 decision = "keep_L_failed_bridge"
-        elif right_low <= left_low:
-            # 右 V 可以略低於左 V，但僅限 1.236 內；超過已在上面被 reset。
+        elif fib_role_zone == "higher_low_R_0_0_618":
+            # Coffee / Higher-Low：0~0.618 都是有效右 V；越小代表右 V 抬得越高。
+            # 前提仍是：同一結構世代 + 兩個獨立 V + qualified bridge。
             anchor = curr
             anchor_side = "R"
-            relation = "w_right_v_lower_within_1_236"
-            anchor_reason = "valid_w_right_v_lower_low_within_1_236"
-            decision = "use_R_lower_within_1.236"
-        elif ha_fib is not None and ha_fib <= FIB_RIGHT_V_RESET_MAX:
-            # Coffee-cup / Higher-Low：回撤 <=0.618，市場已抬高新價格層。
+            relation = "higher_low_right_v"
+            anchor_reason = "valid_higher_low_right_v_fib_0_to_0_618"
+            decision = "use_R_higher_low_0.0_0.618"
+        elif fib_role_zone == "W_R_1_0_1_236":
+            # W 右腳可以略低於左 V，但只允許 1.0~1.236。
             anchor = curr
             anchor_side = "R"
-            relation = "higher_low_reset"
-            anchor_reason = "right_v_higher_low_fib_le_0618_use_right"
-            decision = "use_R_higher_low"
+            relation = "w_right_v_1_0_to_1_236"
+            anchor_reason = "valid_w_right_v_fib_1_0_to_1_236"
+            decision = "use_R_W_1.0_1.236"
         else:
-            # 右 V 雖較高，但回得深，仍屬原 W 底，同一 basin 繼續用左 V。
+            # 0.618~1.0 太深但尚未形成 W 右腳；或其他非正常回撤區。
+            # 既然已形成一個新紫 V，就把它當目前世代的新 L，等待下一個真正右 V。
+            anchor = curr
             anchor_side = "L"
-            relation = "same_basin_deep_retrace"
-            anchor_reason = "right_v_retrace_gt_0618_keep_left"
-            decision = "keep_L_deep_retrace"
+            relation = fib_role_zone
+            anchor_reason = f"fib_zone_{fib_role_zone}_reset_as_new_left"
+            decision = "reset_L_non_R_fib_zone"
 
         pair_history.append({
             "from_run_id": pair_left_run_id,
             "candidate_run_id": int(curr.get("run_id", -1)),
             "decision": decision,
+            "upward_midline_generation_reset": bool(upward_midline_generation),
+            "fib_role_zone": fib_role_zone,
             "bridge_yellow_days": int(bridge.get("yellow_days", 0)),
             "bridge_beats_left_purple2": bool(bridge.get("bridge_beats_left_purple2")),
             "ha_fib_retracement": _round(fibm.get("ha_fib_retracement"), 6),
@@ -823,6 +897,9 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
             violations.append("R_beyond_1_236")
         if last_bridge is not None and not last_bridge.get("bridge_qualified"):
             violations.append("R_without_qualified_bridge")
+        role_zone = _fib_role_zone(last_fib.get("ha_fib_retracement") if last_fib else None)
+        if role_zone not in {"higher_low_R_0_0_618", "W_R_1_0_1_236"}:
+            violations.append("R_outside_allowed_fib_windows")
     if violations:
         anchor_side = "L"
         relation = "self_audit_forced_left"
@@ -831,20 +908,7 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
     ha_fib = last_fib.get("ha_fib_retracement") if last_fib else None
     real_fib = last_fib.get("real_kline_fib_retracement") if last_fib else None
     extension = last_fib.get("structural_extension_ratio") if last_fib else None
-    if ha_fib is None:
-        fib_zone = "unavailable"
-    elif ha_fib < 0:
-        fib_zone = "above_swing_high"
-    elif ha_fib < 0.5:
-        fib_zone = "shallow_lt_0_5"
-    elif ha_fib <= 0.618:
-        fib_zone = "golden_0_5_0_618"
-    elif ha_fib <= 1.0:
-        fib_zone = "deep_0_618_to_1_0"
-    elif ha_fib <= FIB_W_GENERATION_MAX:
-        fib_zone = "w_extension_1_0_to_1_236"
-    else:
-        fib_zone = "generation_break_gt_1_236"
+    fib_zone = _fib_role_zone(ha_fib)
 
     return {
         "engine_rule": PURPLE2_RULE_VERSION,
@@ -865,7 +929,8 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
         "real_kline_fib_retracement": _round(real_fib, 6),
         "structural_extension_ratio": _round(extension, 6),
         "fib_zone": fib_zone,
-        "fib_threshold_higher_low": FIB_RIGHT_V_RESET_MAX,
+        "fib_higher_low_right_window": [FIB_CUP_RIGHT_MIN, FIB_CUP_RIGHT_MAX],
+        "fib_w_right_window": [FIB_W_RIGHT_MIN, FIB_W_RIGHT_MAX],
         "fib_threshold_w_generation": FIB_W_GENERATION_MAX,
         "bridge_yellow_days": int(last_bridge.get("yellow_days", 0)) if last_bridge else 0,
         "bridge_high_price": _round(last_bridge.get("bridge_high"), 10) if last_bridge else None,
@@ -881,7 +946,8 @@ def _dynamic_purple_structure(points: list[dict[str, Any]]) -> dict[str, Any]:
             "rules": [
                 "R_requires_own_purple2",
                 "R_requires_bridge_that_beats_left_purple2",
-                "R_forbidden_if_midline_generation_break",
+                "R_only_allowed_in_fib_0.0_0.618_or_1.0_1.236",
+                "R_forbidden_if_midline_generation_break_up_or_down",
                 "R_forbidden_if_structural_extension_gt_1.236",
             ],
         },

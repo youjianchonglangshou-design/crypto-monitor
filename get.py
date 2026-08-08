@@ -13,7 +13,7 @@ import pandas as pd
 from github_sync import sync_snapshot_to_github
 import scoring_rules as _scoring_engine
 
-EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.3-dp2-gen-fib-1236"
+EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.5-dp2-state-fib-zones"
 ENGINE_API_VERSION = getattr(_scoring_engine, "ENGINE_API_VERSION", "legacy-or-missing")
 OPPORTUNITY_ENGINE_VERSION = getattr(_scoring_engine, "OPPORTUNITY_ENGINE_VERSION", "ENGINE-MISMATCH")
 PURPLE2_RULE_VERSION = getattr(_scoring_engine, "PURPLE2_RULE_VERSION", "P2-MISMATCH")
@@ -28,7 +28,7 @@ ENGINE_FILES_SYNCED = (
 from sector_config import SECTOR_TAGS
 
 TW_TZ = timezone(timedelta(hours=8))
-SCHEMA_VERSION = "crypto-monitor-ai-v5.3-opportunity-geometry-dp2-gen-fib-1236"
+SCHEMA_VERSION = "crypto-monitor-ai-v5.5-opportunity-geometry-dp2-state-fib-zones"
 GROUP_LIMIT = 20
 
 CHART_SEMANTICS = {
@@ -58,8 +58,8 @@ CHART_SEMANTICS = {
         "midline_regime": "rising / flat / flattening / falling from recent 5d midline slope; rising threshold is intentionally sensitive to visual upward tilt",
         "near_midline": "adaptive by BB band position around 0.5, not a fixed +/- price percentage",
         "breakout": "requires a real below-to-above midline crossing (or left-censored evidence when the 20d window starts already above) plus a meaningful upper-half push; deep breakdown invalidates the old wave",
-        "dynamic_purple2": "v5: Fib does not create a V. A bridge must first beat the left Purple-2; upper-to-lower midline generation breaks reset to L; Coffee/Higher-Low uses <=0.618; W may have a slightly lower right V only up to 1.236. If HA or real daily K-line extension exceeds 1.236, the old W is invalid and the current leg becomes a new L.",
-        "purple2_self_audit": "R is forbidden unless it has its own Purple-2, a qualified bridge, no structural generation break, and structural extension <=1.236.",
+        "dynamic_purple2": "v7 state machine: Fib never creates a V. Midline generation resets work both ways: upper-to-lower and lower-to-upper. After two independent V structures are confirmed in the same generation, R is allowed in HA Fib 0.000~0.618 for a Higher-Low/Cup right V, or 1.000~1.236 for a W right leg. HA Fib 0.618~1.000 or >1.236 becomes a new L. Real daily K-line is a structural veto: if its extension exceeds 1.236 the old structure is invalidated.",
+        "purple2_self_audit": "R is forbidden unless it has its own Purple-2, a qualified bridge, remains in the same midline generation, lies inside HA Fib 0.000~0.618 or 1.000~1.236, and neither HA nor real daily K-line structural extension exceeds 1.236.",
         "engine_version": OPPORTUNITY_ENGINE_VERSION,
         "purple2_rule_version": PURPLE2_RULE_VERSION,
         "one_star_note": "one star is not failure; it can mean mature expansion / do-not-chase or otherwise poor long entry timing",

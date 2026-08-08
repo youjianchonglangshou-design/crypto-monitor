@@ -19,7 +19,7 @@ from ha_threshold import compute_threshold_from_daily_data
 from pattern_options import PATTERN_SORT_OPTIONS
 import scoring_rules as _scoring_engine
 
-EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.3-dp2-gen-fib-1236"
+EXPECTED_ENGINE_API_VERSION = "opportunity-geometry-v3.5-dp2-state-fib-zones"
 ENGINE_API_VERSION = getattr(_scoring_engine, "ENGINE_API_VERSION", "legacy-or-missing")
 OPPORTUNITY_ENGINE_VERSION = getattr(_scoring_engine, "OPPORTUNITY_ENGINE_VERSION", "ENGINE-MISMATCH")
 PURPLE2_RULE_VERSION = getattr(_scoring_engine, "PURPLE2_RULE_VERSION", "P2-MISMATCH")
@@ -45,7 +45,7 @@ st.set_page_config(
 
 if not ENGINE_FILES_SYNCED:
     st.error(
-        "⚠️ 引擎檔版本不同步｜UI 預期 OG v3.3，但 scoring_rules.py 是："
+        "⚠️ 引擎檔版本不同步｜UI 預期 OG v3.5，但 scoring_rules.py 是："
         f"{ENGINE_API_VERSION}。請同時覆蓋 main.py、scoring_rules.py、get.py、pattern_options.py。"
     )
     st.code(
